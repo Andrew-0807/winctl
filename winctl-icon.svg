@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1e28"/>
+      <stop offset="100%" style="stop-color:#0d0f14"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7b8ff5"/>
+      <stop offset="100%" style="stop-color:#5e72e4"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2eea8a"/>
+      <stop offset="100%" style="stop-color:#22d47a"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="roundClip">
+      <rect width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid lines -->
+  <g opacity="0.06" stroke="#8892a8" stroke-width="1">
+    <line x1="128" y1="0" x2="128" y2="512"/>
+    <line x1="256" y1="0" x2="256" y2="512"/>
+    <line x1="384" y1="0" x2="384" y2="512"/>
+    <line x1="0" y1="128" x2="512" y2="128"/>
+    <line x1="0" y1="256" x2="512" y2="256"/>
+    <line x1="0" y1="384" x2="512" y2="384"/>
+  </g>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#252a38" stroke-width="2"/>
+
+  <!-- Inner ring -->
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#1e2334" stroke-width="1.5"/>
+
+  <!-- Orbit tick marks -->
+  <g stroke="#2e3547" stroke-width="2" stroke-linecap="round">
+    <line x1="256" y1="68" x2="256" y2="84"/>
+    <line x1="256" y1="428" x2="256" y2="444"/>
+    <line x1="68" y1="256" x2="84" y2="256"/>
+    <line x1="428" y1="256" x2="444" y2="256"/>
+    <!-- diagonals -->
+    <line x1="129" y1="129" x2="140" y2="140"/>
+    <line x1="383" y1="129" x2="372" y2="140"/>
+    <line x1="129" y1="383" x2="140" y2="372"/>
+    <line x1="383" y1="383" x2="372" y2="372"/>
+  </g>
+
+  <!-- Accent arc top-right -->
+  <path d="M 256 76 A 180 180 0 0 1 436 256" fill="none" stroke="url(#accentGrad)" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Center hexagon background -->
+  <polygon points="256,168 324,208 324,288 256,328 188,288 188,208" fill="#13161d" stroke="#252a38" stroke-width="2"/>
+
+  <!-- Hexagon accent border top face -->
+  <polygon points="256,168 324,208 324,288 256,328 188,288 188,208" fill="none" stroke="url(#accentGrad)" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Power button ring -->
+  <circle cx="256" cy="248" r="52" fill="none" stroke="#252a38" stroke-width="10"/>
+  <path d="M 256 196 A 52 52 0 1 1 256 300" fill="none" stroke="url(#accentGrad)" stroke-width="10" stroke-linecap="round" filter="url(#softglow)"/>
+
+  <!-- Power button vertical bar -->
+  <rect x="249" y="218" width="14" height="50" rx="7" fill="url(#accentGrad)" filter="url(#softglow)"/>
+
+  <!-- Green status dot — running indicator -->
+  <circle cx="336" cy="176" r="16" fill="#0d0f14" stroke="#1a1e28" stroke-width="2"/>
+  <circle cx="336" cy="176" r="8" fill="url(#greenGrad)" filter="url(#glow)"/>
+
+  <!-- Three process bars bottom -->
+  <g>
+    <!-- Bar 1: running (green) -->
+    <rect x="160" y="350" width="12" height="44" rx="3" fill="#1a4a32"/>
+    <rect x="160" y="350" width="12" height="44" rx="3" fill="url(#greenGrad)" opacity="0.9"/>
+    <!-- Bar 2: running (shorter) -->
+    <rect x="186" y="362" width="12" height="32" rx="3" fill="#1a4a32"/>
+    <rect x="186" y="362" width="12" height="32" rx="3" fill="url(#greenGrad)" opacity="0.7"/>
+    <!-- Bar 3: stopped (dim) -->
+    <rect x="212" y="370" width="12" height="24" rx="3" fill="#252a38"/>
+    <!-- Bar 4: running -->
+    <rect x="288" y="355" width="12" height="39" rx="3" fill="#1a4a32"/>
+    <rect x="288" y="355" width="12" height="39" rx="3" fill="url(#greenGrad)" opacity="0.8"/>
+    <!-- Bar 5: stopped -->
+    <rect x="314" y="370" width="12" height="24" rx="3" fill="#252a38"/>
+    <!-- Bar 6: running -->
+    <rect x="340" y="358" width="12" height="36" rx="3" fill="#1a4a32"/>
+    <rect x="340" y="358" width="12" height="36" rx="3" fill="url(#greenGrad)" opacity="0.6"/>
+  </g>
+
+  <!-- Baseline line under bars -->
+  <line x1="148" y1="397" x2="364" y2="397" stroke="#252a38" stroke-width="1.5"/>
+
+  <!-- Corner accent dots -->
+  <circle cx="148" cy="397" r="3" fill="#2e3547"/>
+  <circle cx="364" cy="397" r="3" fill="#2e3547"/>
+
+</svg>

@@ -1,0 +1,14 @@
+{
+  "name": "winctl",
+  "version": "1.0.0",
+  "description": "Self-hosted Windows process/service manager with web UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  }
+}

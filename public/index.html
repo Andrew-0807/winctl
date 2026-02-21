@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinCTL</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%231a1e28'/%3E%3Cstop offset='100%25' style='stop-color:%230d0f14'/%3E%3C/linearGradient%3E%3ClinearGradient id='accent' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%237b8ff5'/%3E%3Cstop offset='100%25' style='stop-color:%235e72e4'/%3E%3C/linearGradient%3E%3ClinearGradient id='green' x1='0%25' y1='0%25' x2='0%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232eea8a'/%3E%3Cstop offset='100%25' style='stop-color:%2322d47a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='96' fill='url(%23bg)'/%3E%3Ccircle cx='256' cy='256' r='220' fill='none' stroke='%23252a38' stroke-width='8'/%3E%3Ccircle cx='256' cy='256' r='180' fill='none' stroke='%231e2334' stroke-width='6'/%3E%3Ccircle cx='256' cy='248' r='130' fill='none' stroke='%23252a38' stroke-width='20'/%3E%3Cpath d='M 256 118 A 130 130 0 1 1 256 378' fill='none' stroke='url(%23accent)' stroke-width='14' stroke-linecap='round'/%3E%3Crect x='236' y='178' width='40' height='110' rx='20' fill='url(%23accent)'/%3E%3Ccircle cx='400' cy='140' r='22' fill='%230d0f14' stroke='%231a1e28' stroke-width='4'/%3E%3Ccircle cx='400' cy='140' r='16' fill='url(%23green)'/%3E%3C/svg%3E" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=0xProto:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --surface2: #1a1e28;
+    --border: #252a38;
+    --border2: #2e3547;
+    --text: #e8ecf5;
+    --text2: #8892a8;
+    --text3: #505870;
+    --green: #22d47a;
+    --green-dim: #1a4a32;
+    --red: #f5524a;
+    --red-dim: #3d1f1d;
+    --yellow: #f0b429;
+    --yellow-dim: #3d2f10;
+    --blue: #4d9de0;
+    --blue-dim: #1a2d47;
+    --accent: #5e72e4;
+    --accent-glow: rgba(94,114,228,0.3);
+    --font-mono: '0xProto', monospace;
+    --font-sans: '0xProto', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── Layout ── */
+  .shell {
+    display: grid;
+    grid-template-rows: 56px 1fr;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .logo-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    align-items: center;
+  }
+
+  .stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text2);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .stat-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+
+  .btn-new {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-new:hover { opacity: 0.85; }
+  .btn-new:active { transform: scale(0.97); }
+
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px;
+  }
+
+  /* ── Sidebar ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 0 16px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .sidebar-label:first-child { margin-top: 0; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.12s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--surface2); color: var(--text); border-left-color: var(--accent); }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+  }
+
+  /* ── Main ── */
+  main {
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ── System bar ── */
+  .sysbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .sys-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .sys-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+
+  .sys-value {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .sys-sub {
+    font-size: 0.8125rem;
+    color: var(--text3);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-box::placeholder { color: var(--text3); }
+  .search-box:focus { border-color: var(--accent); }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: var(--font-sans);
+  }
+  .filter-btn.active, .filter-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Service cards ── */
+  .services-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .svc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .svc-card:hover { border-color: var(--border2); }
+  .svc-card.running { border-left: 3px solid var(--green); }
+  .svc-card.stopped { border-left: 3px solid var(--border); }
+
+  .svc-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .svc-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.3s;
+    transform: translateY(-1px);
+  }
+  .status-running .svc-status-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-stopped .svc-status-dot { background: var(--text3); }
+
+  .svc-info { flex: 1; min-width: 0; }
+
+  .svc-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.2;
+  }
+
+  .svc-port {
+    font-size: 0.8125rem;
+    color: var(--blue);
+  }
+
+  .svc-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+  }
+
+  .svc-meta span {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .svc-meta span.highlight { color: var(--blue); }
+
+  .svc-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .badge-running { background: var(--green-dim); color: var(--green); }
+  .badge-stopped { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+  .svc-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .ctrl-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.12s;
+  }
+  .ctrl-btn:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
+  .ctrl-btn.start:hover { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .ctrl-btn.stop:hover { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .ctrl-btn.restart:hover { background: var(--yellow-dim); color: var(--yellow); border-color: var(--yellow); }
+  .ctrl-btn.edit:hover { background: var(--blue-dim); color: var(--blue); border-color: var(--blue); }
+  .ctrl-btn.delete:hover { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ── Expandable panel ── */
+  .svc-panel {
+    border-top: 1px solid var(--border);
+    display: none;
+  }
+  .svc-panel.open { display: block; }
+
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    gap: 0;
+  }
+
+  .panel-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.12s;
+  }
+  .panel-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  .panel-body { padding: 16px; }
+
+  /* ── Log terminal ── */
+  .log-terminal {
+    background: #0a0c11;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    height: 200px;
+    overflow-y: auto;
+    color: var(--text2);
+  }
+
+  .log-line { padding: 1px 0; }
+  .log-line .time { color: var(--text3); }
+  .log-line.err { color: var(--red); }
+  .log-line.sys { color: var(--yellow); }
+
+  .log-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  /* ── Details grid ── */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .detail-item label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .detail-item .val {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface2);
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    word-break: break-all;
+  }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(8px);
+    transition: transform 0.15s;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px;
+    transition: color 0.12s;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  .form-group label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+  }
+
+  .form-input, .form-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .form-input::placeholder { color: var(--text3); }
+  .form-input:focus, .form-select:focus { border-color: var(--accent); }
+  .form-select { cursor: pointer; }
+
+  .form-input.mono { font-family: var(--font-mono); font-size: 12px; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+  }
+
+  .toggle-label { font-size: 13px; color: var(--text2); }
+  .toggle-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 20px; }
+
+  .modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .btn-cancel {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.12s;
+  }
+  .btn-cancel:hover { color: var(--text); border-color: var(--border2); }
+
+  .btn-save {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: opacity 0.12s;
+  }
+  .btn-save:hover { opacity: 0.85; }
+
+  /* ── Port link ── */
+  .port-link {
+    color: var(--blue);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .port-link:hover { text-decoration: underline; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state h3 { font-size: 15px; color: var(--text2); margin-bottom: 8px; font-weight: 500; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .toast-item {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: toastIn 0.2s ease, toastOut 0.2s ease 2.8s forwards;
+    max-width: 300px;
+  }
+  .toast-item.success { border-left: 3px solid var(--green); }
+  .toast-item.error { border-left: 3px solid var(--red); }
+
+  @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .shell { grid-template-columns: 1fr; grid-template-rows: 56px 1fr; }
+    aside { display: none; position: fixed; left: 0; top: 56px; bottom: 0; width: 240px; z-index: 150; }
+    aside.open { display: block; }
+    .menu-toggle { display: flex; }
+    .sysbar { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .header-stats .stat-chip:not(:first-child) { display: none; }
+    main { padding: 14px; }
+  }
+
+  @media (max-width: 480px) {
+    .sysbar { grid-template-columns: 1fr 1fr; }
+    .svc-controls .ctrl-btn { width: 28px; height: 28px; }
+    .svc-header { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="48" height="48" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#1a1e28"/>
+              <stop offset="100%" style="stop-color:#0d0f14"/>
+            </linearGradient>
+            <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#7b8ff5"/>
+              <stop offset="100%" style="stop-color:#5e72e4"/>
+            </linearGradient>
+            <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#2eea8a"/>
+              <stop offset="100%" style="stop-color:#22d47a"/>
+            </linearGradient>
+          </defs>
+          <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+          <circle cx="256" cy="256" r="200" fill="none" stroke="#252a38" stroke-width="6"/>
+          <circle cx="256" cy="256" r="160" fill="none" stroke="#1e2334" stroke-width="4"/>
+          <circle cx="256" cy="248" r="100" fill="none" stroke="#252a38" stroke-width="16"/>
+          <path d="M 256 148 A 100 100 0 1 1 256 348" fill="none" stroke="url(#accentGrad)" stroke-width="10" stroke-linecap="round"/>
+          <rect x="240" y="188" width="32" height="90" rx="16" fill="url(#accentGrad)"/>
+          <circle cx="380" cy="150" r="18" fill="#0d0f14" stroke="#1a1e28" stroke-width="3"/>
+          <circle cx="380" cy="150" r="12" fill="url(#greenGrad)"/>
+        </svg>
+      </div>
+      WinCTL
+    </div>
+    <div class="header-stats">
+      <div class="stat-chip"><span class="dot dot-green"></span><span id="stat-running">0</span> running</div>
+      <div class="stat-chip"><span class="dot dot-red"></span><span id="stat-stopped">0</span> stopped</div>
+      <div class="stat-chip" id="stat-host">—</div>
+    </div>
+    <button class="btn-new" onclick="openModal()">+ New Service</button>
+  </header>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-label">Views</div>
+    <div class="nav-item active" onclick="setView('all', this)">
+      <span>⬡</span> All Services <span class="nav-badge" id="nb-all">0</span>
+    </div>
+    <div class="nav-item" onclick="setView('running', this)">
+      <span>▶</span> Running <span class="nav-badge" id="nb-running">0</span>
+    </div>
+    <div class="nav-item" onclick="setView('stopped', this)">
+      <span>■</span> Stopped <span class="nav-badge" id="nb-stopped">0</span>
+    </div>
+    <div class="sidebar-label">Actions</div>
+    <div class="nav-item" onclick="startAll()"><span>▶▶</span> Start All</div>
+    <div class="nav-item" onclick="stopAll()"><span>■■</span> Stop All</div>
+    <div class="nav-item" onclick="loadSystem()"><span>◈</span> System Info</div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+
+    <!-- System stats -->
+    <div class="sysbar" id="sysbar">
+      <div class="sys-card">
+        <div class="sys-label">CPU Cores</div>
+        <div class="sys-value" id="sys-cpu">—</div>
+        <div class="sys-sub" id="sys-host">—</div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-label">Memory</div>
+        <div class="sys-value" id="sys-mem">—</div>
+        <div class="sys-sub" id="sys-memfree">—</div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-label">Services</div>
+        <div class="sys-value" id="sys-svc">—</div>
+        <div class="sys-sub">total registered</div>
+      </div>
+      <div class="sys-card">
+        <div class="sys-label">Uptime</div>
+        <div class="sys-value" id="sys-uptime">—</div>
+        <div class="sys-sub">system uptime</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input type="text" class="search-box" id="search" placeholder="Search services…" oninput="renderServices()">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" data-filter="running" onclick="setFilter('running', this)">Running</button>
+      <button class="filter-btn" data-filter="stopped" onclick="setFilter('stopped', this)">Stopped</button>
+    </div>
+
+    <!-- Services -->
+    <div class="services-grid" id="services-list"></div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" onclick="handleBackdropClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">New Service</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Service Name *</label>
+          <input type="text" class="form-input" id="f-name" placeholder="My App">
+        </div>
+        <div class="form-group">
+          <label>Port</label>
+          <input type="text" class="form-input mono" id="f-port" placeholder="3000">
+        </div>
+      </div>
+
+      <div class="form-group full">
+        <label>Executable / Command *</label>
+        <input type="text" class="form-input mono" id="f-command" placeholder="C:\path\to\app.exe  or  node">
+      </div>
+
+      <div class="form-group">
+        <label>Arguments</label>
+        <input type="text" class="form-input mono" id="f-args" placeholder="server.js --port 3000">
+      </div>
+
+      <div class="form-group">
+        <label>Working Directory</label>
+        <input type="text" class="form-input mono" id="f-cwd" placeholder="C:\myapp">
+      </div>
+
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" class="form-input" id="f-desc" placeholder="What does this do?">
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Auto-restart on crash</div>
+          <div class="toggle-sub">Exponential backoff up to 30s</div>
+        </div>
+        <div class="toggle" id="toggle-autorestart" onclick="this.classList.toggle('on')"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Start on WinCTL boot</div>
+          <div class="toggle-sub">Launch automatically when WinCTL starts</div>
+        </div>
+        <div class="toggle" id="toggle-autostart" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveService()">Save Service</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let services = [];
+let currentFilter = 'all';
+let currentView = 'all';
+let editingId = null;
+let openPanels = new Set();
+let panelTabs = {};
+
+// ── Socket ─────────────────────────────────────────────────────────────────
+socket.on('status', data => {
+  services = data;
+  renderServices();
+  updateStats();
+});
+
+socket.on('connect', () => loadServices());
+
+// ── Load ───────────────────────────────────────────────────────────────────
+async function loadServices() {
+  const res = await fetch('/api/services');
+  services = await res.json();
+  renderServices();
+  updateStats();
+}
+
+async function loadSystem() {
+  const res = await fetch('/api/system');
+  const sys = await res.json();
+  document.getElementById('sys-cpu').textContent = sys.cpus;
+  document.getElementById('sys-host').textContent = sys.hostname;
+  document.getElementById('sys-mem').textContent = formatBytes(sys.totalMem, 0);
+  document.getElementById('sys-memfree').textContent = formatBytes(sys.freeMem, 0) + ' free';
+  document.getElementById('sys-uptime').textContent = formatUptime(sys.uptime);
+  document.getElementById('stat-host').textContent = sys.hostname;
+}
+
+loadSystem();
+setInterval(loadSystem, 10000);
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderServices() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let list = services.filter(s => {
+    const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.command||'').toLowerCase().includes(q) || (s.description||'').toLowerCase().includes(q);
+    const matchFilter = currentFilter === 'all' || s.status === currentFilter;
+    return matchSearch && matchFilter;
+  });
+
+  const el = document.getElementById('services-list');
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><h3>No services found</h3><p>Add a service using the button above, or adjust your filter.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(s => renderCard(s)).join('');
+
+  // Reopen panels
+  openPanels.forEach(id => {
+    const panel = document.getElementById(`panel-${id}`);
+    if (panel) panel.classList.add('open');
+    const tab = panelTabs[id] || 'logs';
+    const tabEl = document.querySelector(`[data-tab="${id}-${tab}"]`);
+    if (tabEl) tabEl.click();
+  });
+
+  updateStats();
+}
+
+function renderCard(s) {
+  const isRunning = s.status === 'running';
+  const pid = s.pid ? `PID: ${s.pid}` : '';
+  const portLink = s.port ? `<a class="port-link" href="http://localhost:${s.port}" target="_blank">:${s.port} ↗</a>` : '';
+  const uptime = s.startedAt ? `up ${timeAgo(s.startedAt)}` : '';
+  const restarts = s.restartCount ? `↺ ${s.restartCount}` : '';
+  const cmdDisplay = s.command + (s.args ? ' ' + s.args : '');
+
+  return `
+<div class="svc-card ${s.status}" id="card-${s.id}">
+  <div class="svc-header status-${s.status}" onclick="togglePanel('${s.id}')">
+    <div class="svc-status-dot"></div>
+    <div class="svc-info">
+      <div class="svc-name">
+        ${escHtml(s.name)}
+        ${portLink ? `<span class="svc-port">${portLink}</span>` : ''}
+      </div>
+      <div class="svc-meta">
+        ${pid ? `<span>${pid}</span>` : ''}
+        ${uptime ? `<span>${uptime}</span>` : ''}
+        ${restarts ? `<span>${restarts}</span>` : ''}
+      </div>
+    </div>
+    <span class="svc-badge ${isRunning ? 'badge-running' : 'badge-stopped'}">${s.status.toUpperCase()}</span>
+    <div class="svc-controls" onclick="event.stopPropagation()">
+      ${!isRunning ? `<button class="ctrl-btn start" title="Start" onclick="ctrl('${s.id}','start')">▶</button>` : ''}
+      ${isRunning ? `<button class="ctrl-btn stop" title="Stop" onclick="ctrl('${s.id}','stop')">■</button>` : ''}
+      <button class="ctrl-btn edit" title="Edit" onclick="openModal('${s.id}')">✎</button>
+      <button class="ctrl-btn delete" title="Delete" onclick="deleteService('${s.id}','${escHtml(s.name)}')">✕</button>
+    </div>
+  </div>
+  <div class="svc-panel" id="panel-${s.id}">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-tab="${s.id}-logs" onclick="switchTab('${s.id}','logs',this)">Logs</div>
+      <div class="panel-tab" data-tab="${s.id}-details" onclick="switchTab('${s.id}','details',this)">Details</div>
+    </div>
+    <div class="panel-body" id="pbody-${s.id}">
+      ${renderLogsPanel(s)}
+    </div>
+  </div>
+</div>`;
+}
+
+function renderLogsPanel(s) {
+  const logs = (s.recentLogs || []).slice(-100);
+  const lines = logs.map(l => {
+    const cls = l.line.includes('[ERR]') ? 'err' : l.line.includes('[SYS]') ? 'sys' : '';
+    return `<div class="log-line ${cls}"><span class="time">${l.t.substring(11,19)}</span> ${escHtml(l.line)}</div>`;
+  }).join('');
+  return `
+  <div class="log-controls">
+    <span style="font-size:11px;color:var(--text3)">Recent output</span>
+    <button class="ctrl-btn" onclick="clearLogsUI('${s.id}')" title="Clear display" style="width:auto;padding:0 8px;font-size:11px">Clear</button>
+  </div>
+  <div class="log-terminal" id="logs-${s.id}">${lines || '<span style="color:var(--text3)">No output yet</span>'}</div>`;
+}
+
+function renderDetailsPanel(s) {
+  return `<div class="detail-grid">
+    <div class="detail-item"><label>Command</label><div class="val">${escHtml(s.command)}</div></div>
+    <div class="detail-item"><label>Arguments</label><div class="val">${escHtml(s.args||'—')}</div></div>
+    <div class="detail-item"><label>Working Dir</label><div class="val">${escHtml(s.cwd||'(default)')}</div></div>
+    <div class="detail-item"><label>Port</label><div class="val">${s.port ? `<a class="port-link" href="http://localhost:${s.port}" target="_blank">:${s.port} ↗</a>` : '—'}</div></div>
+    <div class="detail-item"><label>Auto-restart</label><div class="val">${s.autoRestart ? '✓ Enabled' : '✕ Disabled'}</div></div>
+    <div class="detail-item"><label>Start on Boot</label><div class="val">${s.autoRestart ? '✓ Enabled' : '✕ Disabled'}</div></div>
+    <div class="detail-item"><label>Process ID</label><div class="val">${s.pid||'—'}</div></div>
+    <div class="detail-item"><label>Restart Count</label><div class="val">${s.restartCount||0}</div></div>
+    <div class="detail-item"><label>Started At</label><div class="val">${s.startedAt||'—'}</div></div>
+    <div class="detail-item"><label>Description</label><div class="val">${escHtml(s.description||'—')}</div></div>
+  </div>`;
+}
+
+// ── Panel / tabs ───────────────────────────────────────────────────────────
+function togglePanel(id) {
+  const panel = document.getElementById(`panel-${id}`);
+  if (!panel) return;
+  if (openPanels.has(id)) {
+    openPanels.delete(id);
+    panel.classList.remove('open');
+  } else {
+    openPanels.add(id);
+    panel.classList.add('open');
+    // Subscribe for live logs
+    socket.emit('subscribe:logs', id);
+    // Scroll logs to bottom
+    setTimeout(() => { const el = document.getElementById(`logs-${id}`); if(el) el.scrollTop = el.scrollHeight; }, 50);
+  }
+}
+
+function switchTab(id, tab, el) {
+  panelTabs[id] = tab;
+  el.closest('.svc-panel').querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const body = document.getElementById(`pbody-${id}`);
+  const svc = services.find(s => s.id === id) || {};
+  if (tab === 'logs') body.innerHTML = renderLogsPanel(svc);
+  if (tab === 'details') body.innerHTML = renderDetailsPanel(svc);
+}
+
+// Live log streaming
+socket.onAny((event, data) => {
+  if (!event.startsWith('log:')) return;
+  const id = event.replace('log:', '');
+  const el = document.getElementById(`logs-${id}`);
+  if (!el) return;
+  const cls = data.line.includes('[ERR]') ? 'err' : data.line.includes('[SYS]') ? 'sys' : '';
+  const line = document.createElement('div');
+  line.className = `log-line ${cls}`;
+  line.innerHTML = `<span class="time">${data.t.substring(11,19)}</span> ${escHtml(data.line)}`;
+  el.appendChild(line);
+  if (el.children.length > 200) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+});
+
+function clearLogsUI(id) {
+  const el = document.getElementById(`logs-${id}`);
+  if (el) el.innerHTML = '<span style="color:var(--text3)">Cleared.</span>';
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+async function ctrl(id, action) {
+  const res = await fetch(`/api/services/${id}/${action}`, { method: 'POST' });
+  const data = await res.json();
+  toast(data.ok !== false ? `${action} OK` : data.msg, data.ok !== false ? 'success' : 'error');
+}
+
+async function deleteService(id, name) {
+  if (!confirm(`Delete "${name}"?\nThis will stop it if running.`)) return;
+  await fetch(`/api/services/${id}`, { method: 'DELETE' });
+  toast(`Deleted: ${name}`);
+}
+
+async function startAll() {
+  const stopped = services.filter(s => s.status === 'stopped');
+  for (const s of stopped) await ctrl(s.id, 'start');
+  toast(`Started ${stopped.length} service(s)`, 'success');
+}
+
+async function stopAll() {
+  const running = services.filter(s => s.status === 'running');
+  for (const s of running) await ctrl(s.id, 'stop');
+  toast(`Stopped ${running.length} service(s)`);
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(id) {
+  editingId = id || null;
+  document.getElementById('modal-title').textContent = id ? 'Edit Service' : 'New Service';
+
+  if (id) {
+    const s = services.find(x => x.id === id);
+    if (s) {
+      document.getElementById('edit-id').value = s.id;
+      document.getElementById('f-name').value = s.name || '';
+      document.getElementById('f-command').value = s.command || '';
+      document.getElementById('f-args').value = s.args || '';
+      document.getElementById('f-cwd').value = s.cwd || '';
+      document.getElementById('f-port').value = s.port || '';
+      document.getElementById('f-desc').value = s.description || '';
+      document.getElementById('toggle-autorestart').classList.toggle('on', !!s.autoRestart);
+      document.getElementById('toggle-autostart').classList.toggle('on', !!s.autoRestart);
+    }
+  } else {
+    document.getElementById('edit-id').value = '';
+    ['f-name','f-command','f-args','f-cwd','f-port','f-desc'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('toggle-autorestart').classList.remove('on');
+    document.getElementById('toggle-autostart').classList.remove('on');
+  }
+
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-name').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+async function saveService() {
+  const name = document.getElementById('f-name').value.trim();
+  const command = document.getElementById('f-command').value.trim();
+  if (!name) { toast('Name is required', 'error'); return; }
+  if (!command) { toast('Command is required', 'error'); return; }
+
+  const body = {
+    name,
+    command,
+    args: document.getElementById('f-args').value.trim(),
+    cwd: document.getElementById('f-cwd').value.trim(),
+    port: document.getElementById('f-port').value.trim(),
+    description: document.getElementById('f-desc').value.trim(),
+    autoRestart: document.getElementById('toggle-autorestart').classList.contains('on'),
+  };
+
+  const id = document.getElementById('edit-id').value;
+  const url = id ? `/api/services/${id}` : '/api/services';
+  const method = id ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  closeModal();
+  toast(id ? 'Service updated' : 'Service added', 'success');
+}
+
+// ── Filters / views ────────────────────────────────────────────────────────
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderServices();
+}
+
+function setView(v, el) {
+  currentView = v;
+  currentFilter = v;
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderServices();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  const running = services.filter(s => s.status === 'running').length;
+  const stopped = services.filter(s => s.status === 'stopped').length;
+  document.getElementById('stat-running').textContent = running;
+  document.getElementById('stat-stopped').textContent = stopped;
+  document.getElementById('nb-all').textContent = services.length;
+  document.getElementById('nb-running').textContent = running;
+  document.getElementById('nb-stopped').textContent = stopped;
+  document.getElementById('sys-svc').textContent = services.length;
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatBytes(b, dec = 1) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024**2) return (b/1024).toFixed(dec) + ' KB';
+  if (b < 1024**3) return (b/1024**2).toFixed(dec) + ' MB';
+  return (b/1024**3).toFixed(dec) + ' GB';
+}
+
+function formatUptime(s) {
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${Math.floor((s%3600)/60)}m`;
+  return `${Math.floor(s/60)}m`;
+}
+
+function timeAgo(iso) {
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+
+// Enter key in modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('modal').classList.contains('open')) saveService();
+});
+</script>
+</body>
+</html>
