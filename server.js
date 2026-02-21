@@ -14,7 +14,14 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Config persistence ──────────────────────────────────────────────────────
-const CONFIG_FILE = path.join(__dirname, 'services.json');
+// Store configs in user's home directory under .winctl
+const CONFIG_DIR = path.join(os.homedir(), '.winctl');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'services.json');
+
+// Create config directory if it doesn't exist
+if (!fs.existsSync(CONFIG_DIR)) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
 
 function loadConfig() {
   if (!fs.existsSync(CONFIG_FILE)) return { services: [] };
