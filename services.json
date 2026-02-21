@@ -4,7 +4,7 @@
       "id": "mlwgsnxf",
       "name": "SwarmUI",
       "command": "E:\\AI\\SwarmUI\\launch-windows.bat",
-      "args": "--launch_mode web",
+      "args": "--no-browser",
       "cwd": "E:\\AI\\SwarmUI\\",
       "port": "7801",
       "description": "",
