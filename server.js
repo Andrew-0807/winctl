@@ -2058,12 +2058,24 @@ function getTrayMenu(theme) {
 
 // Initialize system tray
 function initTray() {
-  if (!systray || os.platform() !== 'win32') {
+  if (!systray) {
+    console.log('Systray module not loaded');
+    return;
+  }
+  
+  if (os.platform() !== 'win32') {
     console.log('System tray not available on this platform');
     return;
   }
   
   const iconPath = path.join(__dirname, 'icons', 'icon-16.png');
+  
+  // Check if icon exists
+  if (!fs.existsSync(iconPath)) {
+    console.log('Tray icon not found:', iconPath);
+    return;
+  }
+  
   const settings = loadSettings();
   const themes = [];
   const themeFiles = fs.existsSync(THEMES_DIR) ? fs.readdirSync(THEMES_DIR) : [];
@@ -2078,6 +2090,7 @@ function initTray() {
   const currentTheme = themes.find(t => t.id === settings.theme) || themes[0];
   
   try {
+    console.log('Initializing system tray...');
     trayInstance = new systray({
       icon: iconPath,
       menu: getTrayMenu(currentTheme),
