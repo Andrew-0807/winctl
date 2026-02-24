@@ -350,7 +350,7 @@ async function runCliCommand() {
       break;
     }
     case 'stop': {
-      const result = await stopWinctl(flags.all);
+      const result = await stopWinctl(true); // Always stop all services
       process.exit(result.ok ? 0 : 1);
       break;
     }
