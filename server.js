@@ -227,33 +227,19 @@ function startWinctl(noConsole, port) {
     }
     
     const exePath = process.execPath;
-    let scriptPath = __filename;
-    
-    // Fix for packaged exe: __filename points to snapshot path, need to use actual exe
-    const isPackedExe = exePath.includes('winctl.exe') && !exePath.includes('node.exe');
-    if (isPackedExe) {
-      // When running as packaged exe, spawn the exe itself with --daemon flag
-      // Use the exe path directly - no script path needed
-      scriptPath = exePath;
-    } else if (scriptPath.includes('snapshot') || !fs.existsSync(scriptPath)) {
-      // If running from snapshot or script doesn't exist, try to find the actual script
-      scriptPath = path.join(path.dirname(exePath), 'server.js');
-      if (!fs.existsSync(scriptPath)) {
-        // Fallback: use the original directory
-        scriptPath = path.join(process.cwd(), 'server.js');
-      }
-    }
+    const isPacked = process.pkg || exePath.includes('winctl.exe');
     
     let args = [];
-    if (isPackedExe) {
-      // For packed exe: exe first, then flags
+    if (isPacked) {
+      // For packed exe: use exe directly
       args.push(exePath);
       if (noConsole) {
         args.push('--minimized');
       }
       args.push('--daemon');
     } else {
-      // For node: script path first, then flags
+      // For node: use script path
+      const scriptPath = __filename;
       args.push(scriptPath);
       args.push('--daemon');
       if (noConsole) {
@@ -264,7 +250,6 @@ function startWinctl(noConsole, port) {
     let spawnEnv = { ...process.env, PORT: port.toString() };
     
     console.log(`[START] exePath: ${exePath}`);
-    console.log(`[START] scriptPath: ${scriptPath}`);
     console.log(`[START] args: ${args.join(' ')}`);
     
     // Spawn detached and exit immediately (daemonize)
