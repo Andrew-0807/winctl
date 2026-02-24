@@ -15,7 +15,10 @@
     ],
     "assets": [
       "public/**/*",
-      "winctl-icon.svg"
+      "winctl-icon.svg",
+      "winctl-icon.png",
+      "icons/**/*",
+      "hide_console.vbs"
     ],
     "targets": [
       "node18-win-x64"
@@ -23,7 +26,8 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "systray": "^1.0.5"
   },
   "devDependencies": {
     "pkg": "^5.8.1"

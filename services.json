@@ -25,6 +25,19 @@
       "env": {},
       "tags": [],
       "createdAt": "2026-02-21T15:38:04.925Z"
+    },
+    {
+      "id": "mlwirfql",
+      "name": "Sefirah",
+      "command": "C:\\Program Files\\WindowsApps\\shrimqy.Seki-PhoneLink_2.0.1.0_x64__9yhjgvpvzzxz2\\Sefirah.exe",
+      "args": "",
+      "cwd": "",
+      "port": "",
+      "description": "",
+      "autoRestart": false,
+      "env": {},
+      "tags": [],
+      "createdAt": "2026-02-21T16:14:29.975Z"
     }
   ]
 }

@@ -2,10 +2,19 @@
 title WinCTL Setup
 color 0A
 
+REM Set UTF-8 encoding for proper Unicode support
+chcp 65001 >nul 2>&1
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
+set LANG=en_US.UTF-8
+set LC_ALL=en_US.UTF-8
+
 echo.
 echo  ================================
 echo   WinCTL - Windows Service Manager
 echo  ================================
+echo.
+echo [INFO] Using UTF-8 encoding (Code Page 65001)
 echo.
 
 :: Check Node.js
