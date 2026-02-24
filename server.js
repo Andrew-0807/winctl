@@ -253,7 +253,7 @@ function startWinctl(noConsole, port) {
     console.log(`[START] args: ${args.join(' ')}`);
     
     // Spawn detached and exit immediately (daemonize)
-    spawn(exePath, args, {
+    const child = spawn(exePath, args, {
       detached: true,
       stdio: 'ignore',
       windowsHide: noConsole,
@@ -261,9 +261,20 @@ function startWinctl(noConsole, port) {
       cwd: process.cwd()
     });
     
-    // Exit immediately - don't wait
-    console.log(`WinCTL started on port ${port}`);
-    resolve({ ok: true, msg: 'Started' });
+    child.unref();
+    
+    // Wait a bit for the process to actually start
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Verify it's running
+    const started = await isWinctlRunning(port);
+    if (started) {
+      console.log(`WinCTL started on port ${port}`);
+      resolve({ ok: true, msg: 'Started' });
+    } else {
+      console.log('WinCTL failed to start');
+      resolve({ ok: false, msg: 'Failed to start' });
+    }
   });
 }
 
