@@ -1874,7 +1874,7 @@ app.delete('/api/themes/:id', (req, res) => {
 });
 
 // ── Detect running processes on startup ─────────────────────────────────────
-let isStartingUp = true; // Flag to prevent process killing during startup
+isStartingUp = true; // Flag to prevent process killing during startup
 
 async function detectRunningProcesses() {
   const config = loadConfig();
