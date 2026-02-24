@@ -38,6 +38,56 @@ function killProcessByName(exePath, callback) {
   exec(killCmd, callback);
 }
 
+// Input validation to prevent command injection
+function sanitizeString(str, allowEmpty = false) {
+  if (!str) return allowEmpty ? '' : null;
+  if (typeof str !== 'string') return null;
+  // Remove null bytes and control characters except newlines/tabs
+  return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').slice(0, 10000);
+}
+
+function validatePort(port) {
+  if (!port) return null; // No port is OK
+  const portNum = parseInt(port, 10);
+  if (isNaN(portNum) || portNum < 1 || portNum > 65535) return null;
+  return portNum.toString();
+}
+
+function validateServiceInput(service) {
+  const errors = [];
+  
+  const name = sanitizeString(service.name);
+  if (!name) errors.push('Invalid service name');
+  
+  const command = sanitizeString(service.command);
+  if (!command) errors.push('Invalid command');
+  
+  const port = validatePort(service.port);
+  if (service.port && !port) errors.push('Invalid port number');
+  
+  const args = sanitizeString(service.args, true);
+  const cwd = sanitizeString(service.cwd, true);
+  const description = sanitizeString(service.description, true);
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    sanitized: {
+      id: service.id,
+      name,
+      command,
+      args: args || '',
+      cwd: cwd || '',
+      port: port || '',
+      description: description || '',
+      autoRestart: Boolean(service.autoRestart),
+      env: service.env || {},
+      tags: Array.isArray(service.tags) ? service.tags : [],
+      minimized: Boolean(service.minimized)
+    }
+  };
+}
+
 // ── Autostart (Windows Registry) ───────────────────────────────────────────────
 function getExePath() {
   if (process.execPath.endsWith('node.exe')) {
@@ -107,6 +157,7 @@ if (os.platform() === 'win32' && process.argv.includes('--minimized')) {
 
 // Skip CLI mode check if started as daemon (child process)
 const isDaemon = process.argv.includes('--daemon');
+let isStartingUp = false;
 
 // ── CLI Commands ───────────────────────────────────────────────────────────────
 const DEFAULT_PORT = process.env.PORT || 8888;
@@ -373,6 +424,14 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'services.json');
 const SETTINGS_FILE = path.join(CONFIG_DIR, 'settings.json');
 const THEMES_DIR = path.join(CONFIG_DIR, 'themes');
 
+// Config caching to reduce file I/O
+let configCache = { services: [], folders: [] };
+let configCacheTime = 0;
+let settingsCache = {};
+let settingsCacheTime = 0;
+const CONFIG_CACHE_TTL = 5000; // 5 seconds
+const SETTINGS_CACHE_TTL = 5000; // 5 seconds
+
 const DEFAULT_THEMES = {
   'dark-default': {
     name: 'Dark Default',
@@ -568,10 +627,14 @@ Object.entries(DEFAULT_THEMES).forEach(([id, theme]) => {
 });
 
 function loadConfig() {
+  const now = Date.now();
+  if (configCache && (now - configCacheTime) < CONFIG_CACHE_TTL) {
+    return configCache;
+  }
+  
   let services = [];
   let folders = [];
   
-  // Load services and folders
   if (fs.existsSync(CONFIG_FILE)) {
     try {
       const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
@@ -580,38 +643,54 @@ function loadConfig() {
     } catch { /* ignore */ }
   }
   
-  return { services, folders };
+  configCache = { services, folders };
+  configCacheTime = now;
+  return configCache;
 }
 
 function loadSettings() {
+  const now = Date.now();
+  if (settingsCache && (now - settingsCacheTime) < SETTINGS_CACHE_TTL) {
+    return settingsCache;
+  }
+  
   if (!fs.existsSync(SETTINGS_FILE)) {
-    // Create default settings file
     const defaultSettings = { 
       folderStatePreference: 'remember', 
       showFolderCount: true,
       autoStart: false 
     };
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2));
+    settingsCache = defaultSettings;
+    settingsCacheTime = now;
     return defaultSettings;
   }
   
   try {
-    return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    settingsCache = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    settingsCacheTime = now;
+    return settingsCache;
   } catch {
-    return { 
+    settingsCache = { 
       folderStatePreference: 'remember', 
       showFolderCount: true,
       autoStart: false 
     };
+    settingsCacheTime = now;
+    return settingsCache;
   }
 }
 
 function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+  configCache = data;
+  configCacheTime = Date.now();
 }
 
 function saveSettings(settings) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  settingsCache = settings;
+  settingsCacheTime = Date.now();
 }
 
 function migrateSettings() {
@@ -852,7 +931,7 @@ async function periodicStatusCheck() {
   }
 }
 
-setInterval(periodicStatusCheck, 3000);
+setInterval(periodicStatusCheck, 15000);
 
 // ── Kill process on port ───────────────────────────────────────────────────────
 function killProcessOnPort(port) {
@@ -1195,9 +1274,6 @@ async function startService(service, autoRestart = true) {
       const quotedCommand = quoteWindowsPath(service.command);
       const quotedArgs = args.map(quoteWindowsPath).join(' ');
       const fullCommand = quotedCommand + (quotedArgs ? ' ' + quotedArgs : '');
-      console.log(`[SPAWN] shell=true, command="${fullCommand}", cwd="${cwd}"`);
-      console.log(`[DEBUG] Current PATH: ${process.env.PATH}`);
-      console.log(`[DEBUG] Command exists: ${fs.existsSync(service.command) ? 'YES' : 'NO'}`);
       
       // Enhanced environment with explicit PATH
       const spawnEnv = { 
@@ -1214,7 +1290,6 @@ async function startService(service, autoRestart = true) {
         detached: false,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
-      console.log(`[SPAWN] pid=${proc.pid}, stdio=pipes attached`);
       
       entry.process = proc;
     }
@@ -1266,21 +1341,15 @@ async function startService(service, autoRestart = true) {
         }
       }
       
-      console.log(`[DEBUG] Adding log to entry.logs array (current length: ${entry.logs.length})`);
       entry.logs.push({ t: new Date().toISOString(), line: `[${logLevel}] ${line}` });
       if (entry.logs.length > 500) entry.logs.shift();
-      console.log(`[DEBUG] Emitting log:${service.id} to ${io.sockets.sockets.size} clients`);
-      console.log(`[DEBUG] Log data:`, { t: new Date().toISOString(), line: `[${logLevel}] ${line}`.substring(0, 100) });
       io.emit(`log:${service.id}`, { t: new Date().toISOString(), line: `[${logLevel}] ${line}` });
-      console.log(`[DEBUG] Log emission completed`);
     };
 
     proc.stdout.on('data', d => {
-      console.log(`[STDOUT:${service.id}] raw: ${d.toString().trim()}`);
       pushLog('OUT', d);
     });
     proc.stderr.on('data', d => {
-      console.log(`[STDERR:${service.id}] raw: ${d.toString().trim()}`);
       pushLog('ERR', d);
     });
 
@@ -1357,19 +1426,6 @@ async function verifyPortAndCapturePid(service, entry, attempts = 0) {
   }
 
   verifyPortAndCapturePid(service, entry, attempts + 1);
-}
-
-async function getPidOnPort(port) {
-  return new Promise((resolve) => {
-    exec(`netstat -ano | findstr :${port} | findstr LISTENING`, (err, stdout) => {
-      if (err || !stdout.trim()) {
-        resolve(null);
-        return;
-      }
-      const match = stdout.trim().match(/(\d+)\s*$/);
-      resolve(match ? parseInt(match[1]) : null);
-    });
-  });
 }
 
 async function capturePidByName(service, entry) {
@@ -1460,14 +1516,6 @@ async function verifyPortOpen(service, entry, attempts = 0) {
   }
 
   verifyPortOpen(service, entry, attempts + 1);
-}
-
-async function checkPort(port) {
-  return new Promise((resolve) => {
-    exec(`netstat -ano | findstr :${port} | findstr LISTENING`, (err, stdout) => {
-      resolve(!err && stdout.trim().length > 0);
-    });
-  });
 }
 
 async function stopService(id) {
@@ -1575,20 +1623,16 @@ app.get('/api/services', (req, res) => {
 });
 
 app.post('/api/services', (req, res) => {
+  const validation = validateServiceInput(req.body);
+  if (!validation.isValid) {
+    return res.status(400).json({ error: validation.errors.join(', ') });
+  }
+  
   const config = loadConfig();
   const svc = {
     id: Date.now().toString(36),
-    name: req.body.name || 'Unnamed',
-    command: req.body.command || '',
-    args: req.body.args || '',
-    cwd: req.body.cwd || '',
-    port: req.body.port || '',
-    description: req.body.description || '',
-    autoRestart: req.body.autoRestart ?? false,
-    minimized: req.body.minimized ?? false,
+    ...validation.sanitized,
     folderId: req.body.folderId || null,
-    env: req.body.env || {},
-    tags: req.body.tags || [],
     createdAt: new Date().toISOString(),
   };
   config.services.push(svc);
@@ -1601,7 +1645,13 @@ app.put('/api/services/:id', (req, res) => {
   const config = loadConfig();
   const idx = config.services.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  config.services[idx] = { ...config.services[idx], ...req.body, id: req.params.id };
+  
+  const validation = validateServiceInput({ ...config.services[idx], ...req.body });
+  if (!validation.isValid) {
+    return res.status(400).json({ error: validation.errors.join(', ') });
+  }
+  
+  config.services[idx] = { ...validation.sanitized, id: req.params.id };
   saveConfig(config);
   broadcastStatus();
   res.json(config.services[idx]);
