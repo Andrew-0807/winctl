@@ -1,0 +1,10 @@
+import type { Express } from 'express';
+import type { Server } from 'socket.io';
+import type { Service, ValidationResult } from './types.js';
+export declare function sanitizeString(str: unknown, allowEmpty?: boolean): string | null;
+export declare function validatePort(port: unknown): string | null;
+export declare function validateServiceInput(service: Partial<Service> & Record<string, unknown>): ValidationResult;
+export declare function isAutostartEnabled(): Promise<boolean>;
+export declare function enableAutostart(): Promise<void>;
+export declare function disableAutostart(): Promise<void>;
+export declare function setupRoutes(app: Express, io: Server): void;

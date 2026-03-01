@@ -1,3 +1,11 @@
-node_modules
-.webui_secret_key
+node_modules/
+dist/
+dist-cli/
+dist-server/
 winctl.exe
+winctl-daemon.exe
+code_memory.db*
+.webui_secret_key
+test*.ahk
+test*.js
+backup/

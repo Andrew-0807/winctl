@@ -1,0 +1,31 @@
+/* WinCTL CSS Variables - Dark Default Theme */
+
+:root {
+  /* Colors */
+  --bg: #0d0f14;
+  --surface: #13161d;
+  --surface2: #1a1e28;
+  --border: #252a38;
+  --border2: #2e3547;
+  --text: #e8ecf5;
+  --text2: #8892a8;
+  --text3: #505870;
+  
+  /* Status Colors */
+  --green: #22d47a;
+  --green-dim: #1a4a32;
+  --red: #f5524a;
+  --red-dim: #3d1f1d;
+  --yellow: #f0b429;
+  --yellow-dim: #3d2f10;
+  --blue: #4d9de0;
+  --blue-dim: #1a2d47;
+  
+  /* Accent */
+  --accent: #5e72e4;
+  --accent-glow: rgba(94,114,228,0.3);
+  
+  /* Typography */
+  --font-mono: '0xProto', monospace;
+  --font-sans: '0xProto', sans-serif;
+}

@@ -1,0 +1,56 @@
+{
+  "name": "winctl",
+  "version": "2.0.0",
+  "description": "Self-hosted Windows process/service manager with web UI",
+  "main": "dist-cli/index.js",
+  "bin": {
+    "winctl": "dist-cli/index.js"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"tsx watch server/index.ts\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:cli": "tsc -p tsconfig.cli.json",
+    "build": "npm run build:client && npm run build:server && npm run build:cli",
+    "start": "node dist-server/index.js",
+    "pkg:daemon": "pkg dist-server/index.js --targets node18-win-x64 --output winctl-daemon.exe",
+    "pkg:cli": "pkg dist-cli/index.js --targets node18-win-x64 --output winctl.exe",
+    "package": "npm run build && npm run pkg:daemon && npm run pkg:cli",
+    "service:install": "node scripts/service-install.js",
+    "service:uninstall": "node scripts/service-uninstall.js"
+  },
+  "pkg": {
+    "scripts": [
+      "dist-server/**/*.js",
+      "dist-cli/**/*.js"
+    ],
+    "assets": [
+      "dist/**/*",
+      "public/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
+  "dependencies": {
+    "@thisbeyond/solid-dnd": "^0.7.5",
+    "express": "^4.21.0",
+    "lucide-solid": "^0.575.0",
+    "node-windows": "^1.0.0-beta.8",
+    "socket.io": "^4.8.0",
+    "systray": "^1.0.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.1.0",
+    "pkg": "^5.8.1",
+    "solid-js": "^1.9.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}

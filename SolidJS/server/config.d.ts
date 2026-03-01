@@ -1,0 +1,20 @@
+import type { ServiceConfig, Settings, Theme } from './types.js';
+export declare const CONFIG_DIR: string;
+export declare const CONFIG_FILE: string;
+export declare const SETTINGS_FILE: string;
+export declare const THEMES_DIR: string;
+export declare const LOG_FILE: string;
+export declare const DEFAULT_THEMES: Record<string, Omit<Theme, 'id'>>;
+export declare function ensureConfigDirs(): void;
+export declare function loadConfig(): ServiceConfig;
+export declare function saveConfig(data: ServiceConfig): void;
+export declare function loadSettings(): Settings;
+export declare function saveSettings(settings: Settings): void;
+export declare function migrateSettings(): void;
+export declare function loadThemes(): Theme[];
+export declare function saveCustomTheme(id: string, theme: Omit<Theme, 'id'>): Theme;
+export declare function deleteCustomTheme(id: string): {
+    ok: boolean;
+    error?: string;
+};
+export declare function getThemeById(id: string): Theme | null;
