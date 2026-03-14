@@ -53,8 +53,6 @@
 |:-:|:-:|
 | ![Gallery View](docs/Screenshots/Gallery%20view.png) | ![List View](docs/Screenshots/List%20view.png) |
 
-![Mobile View](docs/Screenshots/Phone.png)
-
 </div>
 
 ---
@@ -86,7 +84,7 @@ This adds `winctl` to your PATH and optionally installs WinCTL as a Windows Serv
 winctl start
 ```
 
-Then open **http://localhost:8080** in any browser. From your phone or tablet on the same network use `http://<your-pc-ip>:8080`.
+Then open **<http://localhost:8080>** in any browser. From your phone or tablet on the same network use `http://<your-pc-ip>:8080`.
 
 > **Find your PC's IP:** run `ipconfig` in cmd and look for _IPv4 Address_.
 
