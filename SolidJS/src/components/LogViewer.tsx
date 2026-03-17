@@ -1,6 +1,7 @@
-import { Component, createSignal, createEffect, For, Show } from 'solid-js';
+import { Component, createSignal, createEffect, For, Show, onMount, onCleanup } from 'solid-js';
 import { toast } from '../stores/ui';
 import Icon from './Icon';
+import { socket } from '../stores/socket';
 
 interface LogViewerProps {
   serviceId: string;
@@ -9,22 +10,47 @@ interface LogViewerProps {
 
 const LogViewer: Component<LogViewerProps> = (props) => {
   const [autoScroll, setAutoScroll] = createSignal(true);
+  const [localLogs, setLocalLogs] = createSignal<Array<{ t: string; line: string }>>([]);
   let terminalRef: HTMLDivElement | undefined;
-  
+
+  createEffect(() => {
+    setLocalLogs(props.logs || []);
+  });
+
+  onMount(() => {
+    const eventName = `log:${props.serviceId}`;
+
+    const handleLog = (logEntry: { t: string; line: string }) => {
+      setLocalLogs(prev => {
+        const next = [...prev, logEntry];
+        return next.length > 500 ? next.slice(-500) : next;
+      });
+    };
+
+    socket.emit('subscribe:logs', props.serviceId);
+    socket.on(eventName, handleLog);
+
+    onCleanup(() => {
+      socket.off(eventName, handleLog);
+    });
+  });
+
   // Auto-scroll to bottom when new logs arrive
   createEffect(() => {
-    const logs = props.logs;
+    const logs = localLogs();
     if (autoScroll() && terminalRef && logs.length > 0) {
-      terminalRef.scrollTop = terminalRef.scrollHeight;
+      setTimeout(() => {
+        if (terminalRef) terminalRef.scrollTop = terminalRef.scrollHeight;
+      }, 0);
     }
   });
-  
+
   const toggleAutoScroll = () => {
     setAutoScroll(!autoScroll());
   };
-  
+
   const copyLogs = async () => {
-    const logText = props.logs.map(l => `${l.t.substring(11, 19)} ${l.line}`).join('\n');
+    const logText = localLogs().map(l => `${l.t.substring(11, 19)} ${l.line}`).join('\n');
     try {
       await navigator.clipboard.writeText(logText);
       toast('Logs copied to clipboard', 'success');
@@ -33,18 +59,19 @@ const LogViewer: Component<LogViewerProps> = (props) => {
       toast('Failed to copy logs', 'error');
     }
   };
-  
+
   const clearLogs = () => {
+    setLocalLogs([]);
     toast('Logs cleared (display only)', 'success');
   };
-  
+
   const getLogClass = (line: string): string => {
     if (line.includes('[ERR]')) return 'err';
     if (line.includes('[SYS]')) return 'sys';
     return '';
   };
-  
-  const displayedLogs = () => props.logs.slice(-100);
+
+  const displayedLogs = () => localLogs().slice(-100);
 
   return (
     <div class="log-viewer">
@@ -53,8 +80,8 @@ const LogViewer: Component<LogViewerProps> = (props) => {
           <Icon name="Copy" size={12} />
           Copy
         </button>
-        <button 
-          class={`log-btn ${autoScroll() ? 'active' : ''}`} 
+        <button
+          class={`log-btn ${autoScroll() ? 'active' : ''}`}
           onClick={toggleAutoScroll}
           title="Toggle auto-scroll"
         >
@@ -66,13 +93,13 @@ const LogViewer: Component<LogViewerProps> = (props) => {
           Clear
         </button>
       </div>
-      <div 
-        class="log-terminal" 
+      <div
+        class="log-terminal"
         id={`logs-${props.serviceId}`}
         data-autoscroll={autoScroll().toString()}
         ref={terminalRef}
       >
-        <Show 
+        <Show
           when={displayedLogs().length > 0}
           fallback={<span style="color: var(--text3)">No output yet</span>}
         >

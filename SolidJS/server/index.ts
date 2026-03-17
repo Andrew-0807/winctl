@@ -158,7 +158,7 @@ function initTray(): void {
   }
 
   try {
-    trayInstance = new SysTrayClass({ menu: getTrayMenuDef(iconBase64) });
+    trayInstance = new SysTrayClass({ menu: getTrayMenuDef(iconBase64), copyDir: true });
 
     trayInstance.onClick((action) => {
       switch (action.seq_id) {
@@ -190,7 +190,7 @@ export function refreshTrayMenu(): void {
 let isShuttingDown = false;
 let httpServerRef: ReturnType<typeof createServer> | null = null;
 
-async function shutdownDaemon(force: boolean): Promise<void> {
+async function shutdownDaemon(force: boolean, keepServices = false): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -212,24 +212,29 @@ async function shutdownDaemon(force: boolean): Promise<void> {
     return;
   }
 
-  // Graceful: stop all running managed services
-  try {
-    const registry = getRegistry();
-    const stopPromises: Promise<unknown>[] = [];
-    for (const [id] of registry) {
-      if (getStatus(id) === 'running' || getStatus(id) === 'starting') {
-        stopPromises.push(stopService(id).catch(e => {
-          console.log(`[SHUTDOWN] Error stopping ${id}:`, (e as Error).message);
-        }));
+  // Graceful: stop all running managed services (unless keepServices is true)
+  if (!keepServices) {
+    try {
+      const registry = getRegistry();
+      const stopPromises: Promise<unknown>[] = [];
+      for (const [id, entry] of registry) {
+        if (entry.detectedExternally) continue; // Don't kill processes WinCTL didn't spawn
+        if (getStatus(id) === 'running' || getStatus(id) === 'starting') {
+          stopPromises.push(stopService(id).catch(e => {
+            console.log(`[SHUTDOWN] Error stopping ${id}:`, (e as Error).message);
+          }));
+        }
       }
+      if (stopPromises.length > 0) {
+        console.log(`[SHUTDOWN] Stopping ${stopPromises.length} managed service(s)...`);
+        await Promise.all(stopPromises);
+        console.log('[SHUTDOWN] All managed services stopped');
+      }
+    } catch (e) {
+      console.log('[SHUTDOWN] Error during service cleanup:', (e as Error).message);
     }
-    if (stopPromises.length > 0) {
-      console.log(`[SHUTDOWN] Stopping ${stopPromises.length} managed service(s)...`);
-      await Promise.all(stopPromises);
-      console.log('[SHUTDOWN] All managed services stopped');
-    }
-  } catch (e) {
-    console.log('[SHUTDOWN] Error during service cleanup:', (e as Error).message);
+  } else {
+    console.log('[SHUTDOWN] keepServices=true — leaving managed services running');
   }
 
   // Close HTTP server
@@ -374,11 +379,13 @@ async function main(): Promise<void> {
     // ── Signal handlers for graceful shutdown ──────────────────────────────────
     process.on('SIGTERM', () => {
       console.log('[SIGNAL] Received SIGTERM');
-      shutdownDaemon(false);
+      const { keepServicesOnExit } = loadSettings();
+      shutdownDaemon(false, keepServicesOnExit);
     });
     process.on('SIGINT', () => {
       console.log('[SIGNAL] Received SIGINT');
-      shutdownDaemon(false);
+      const { keepServicesOnExit } = loadSettings();
+      shutdownDaemon(false, keepServicesOnExit);
     });
   });
 }

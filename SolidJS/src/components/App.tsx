@@ -1,6 +1,6 @@
-import { Component, onMount, onCleanup, createEffect } from 'solid-js';
+import { Component, onMount, onCleanup, createEffect, Show } from 'solid-js';
 import { loadThemes, applyTheme } from '../stores/themes';
-import { sidebarCollapsed, handleKeyDown } from '../stores/ui';
+import { sidebarCollapsed, handleKeyDown, runPanelOpen } from '../stores/ui';
 import { loadSystem, loadServices } from '../stores/services';
 
 // Import all components
@@ -13,9 +13,11 @@ import ServiceModal from './ServiceModal';
 import FolderModal from './FolderModal';
 import SettingsModal from './SettingsModal';
 import ThemeCreator from './ThemeCreator';
+import SystemInfoModal from './SystemInfoModal';
 import FAB from './FAB';
 import ContextMenu from './ContextMenu';
 import Toast from './Toast';
+import RunCommandPanel from './RunCommandPanel';
 
 const App: Component = () => {
   // Declare at component scope so onCleanup can reference it
@@ -63,6 +65,9 @@ const App: Component = () => {
       <main>
         <SystemStats />
         <Toolbar />
+        <Show when={runPanelOpen()}>
+          <RunCommandPanel />
+        </Show>
         <ServiceGrid />
       </main>
 
@@ -74,6 +79,7 @@ const App: Component = () => {
       <FolderModal />
       <SettingsModal />
       <ThemeCreator />
+      <SystemInfoModal />
     </div>
   );
 };

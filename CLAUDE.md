@@ -89,3 +89,19 @@ Generated as `Date.now().toString(36)` — base-36 timestamps. Not UUIDs.
 ### Theme system
 
 Themes are CSS variable sets stored as JSON. Built-in themes are written to `~/.winctl/themes/` on startup if they don't exist. Custom themes can be created/deleted via the API. The active theme ID is stored in `settings.json`.
+
+---
+
+# Hindsight Memory Rules
+
+This project uses Hindsight persistent memory via MCP. Follow these rules every session.
+
+## Session Protocol
+
+- **Session start:** call `hindsight_recall("current task topic")` before doing any work
+- **Task complete:** call `hindsight_retain("what was done and why")` after any meaningful task
+- **When stuck:** call `hindsight_reflect("what's going wrong")` before trying a new approach
+
+Never re-explain the full project — query Hindsight first and build on what's there.
+
+## Memory Bank: `winctl`

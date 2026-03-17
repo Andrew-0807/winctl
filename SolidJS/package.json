@@ -15,9 +15,9 @@
     "build:cli": "tsc -p tsconfig.cli.json",
     "build": "npm run build:client && npm run build:server && npm run build:cli",
     "start": "node dist-server/index.js",
-    "pkg:daemon": "pkg dist-server/index.js --targets node18-win-x64 --output winctl-daemon.exe",
-    "pkg:cli": "pkg dist-cli/index.js --targets node18-win-x64 --output winctl.exe",
-    "package": "npm run build && npm run pkg:daemon && npm run pkg:cli",
+    "pkg:daemon": "pkg dist-server/index.js --targets node18-win-x64 --output ../winctl-daemon.exe",
+    "pkg:cli": "pkg dist-cli/index.js --targets node18-win-x64 --output ../winctl.exe",
+    "package": "npm run build && npm run pkg:daemon && npm run pkg:cli && npx -y shx rm -rf ../dist && npx -y shx cp -r dist ../",
     "service:install": "node scripts/service-install.js",
     "service:uninstall": "node scripts/service-uninstall.js"
   },
@@ -40,6 +40,7 @@
     "lucide-solid": "^0.575.0",
     "node-windows": "^1.0.0-beta.8",
     "socket.io": "^4.8.0",
+    "socket.io-client": "^4.8.3",
     "systray": "^1.0.5"
   },
   "devDependencies": {

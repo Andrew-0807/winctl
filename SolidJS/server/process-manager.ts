@@ -1,16 +1,47 @@
-import { spawn, exec } from 'child_process';
+import { spawn, exec, execSync } from 'child_process';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import type { Server } from 'socket.io';
-import type { Service, ServiceEntry, LogEntry, MockProcess } from './types.js';
+import type { Service, ServiceEntry, LogEntry, MockProcess, ExecRequest, ExecSession } from './types.js';
 import { loadConfig, loadSettings } from './config.js';
+
+// ── Fresh PATH from Windows registry ──────────────────────────────────────────
+// WinCTL may start before the user modifies their PATH (e.g. conda, pyenv, venv).
+// Reading from the registry gives the same PATH a fresh PowerShell/CMD session sees.
+
+let _refreshedPath: string | null = null;
+
+function getRefreshedPath(): string {
+  if (_refreshedPath !== null) return _refreshedPath;
+  if (os.platform() !== 'win32') {
+    _refreshedPath = process.env.PATH || '';
+    return _refreshedPath;
+  }
+  try {
+    const readReg = (key: string): string => {
+      try {
+        const out = execSync(`reg query "${key}" /v PATH`, { encoding: 'utf8', timeout: 3000 });
+        return out.match(/PATH\s+\S+\s+(.+)/)?.[1]?.trim() ?? '';
+      } catch { return ''; }
+    };
+    const userPath   = readReg('HKCU\\Environment');
+    const systemPath = readReg('HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment');
+    // User PATH first (same precedence as Windows shell), fall back to inherited
+    const merged = [userPath, systemPath, process.env.PATH || ''].filter(Boolean).join(';');
+    _refreshedPath = merged;
+    console.log('[PATH] Refreshed PATH from registry');
+  } catch {
+    _refreshedPath = process.env.PATH || '';
+  }
+  return _refreshedPath;
+}
 
 // ── Resolve executable from PATH ───────────────────────────────────────────────
 
 function resolveFromPath(command: string): string | null {
-  // Get PATH from current process environment
-  const pathEnv = process.env.PATH || '';
+  // Get PATH from registry (fresh, same as a new shell session)
+  const pathEnv = getRefreshedPath();
   const pathDirs = pathEnv.split(path.delimiter);
 
   // Also search common Windows Program Files directories
@@ -68,6 +99,52 @@ function resolveFromPath(command: string): string | null {
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 const registry = new Map<string, ServiceEntry>();
+
+// ── Ad-hoc exec registry ──────────────────────────────────────────────────────
+
+const execRegistry = new Map<string, ExecSession>();
+
+export function runExec(io: Server, request: ExecRequest): string {
+  const execId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const { command, cwd, env } = request;
+
+  const proc = spawn('cmd.exe', ['/c', command], {
+    cwd: cwd || undefined,
+    env: { ...process.env, PATH: getRefreshedPath(), ...env },
+    windowsHide: true,
+  });
+
+  execRegistry.set(execId, { process: proc, execId, startedAt: new Date().toISOString() });
+
+  proc.stdout?.on('data', (chunk: Buffer) => {
+    for (const line of chunk.toString().split(/\r?\n/)) {
+      if (line) io.emit('exec:output', { execId, stream: 'stdout', line });
+    }
+  });
+
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    for (const line of chunk.toString().split(/\r?\n/)) {
+      if (line) io.emit('exec:output', { execId, stream: 'stderr', line });
+    }
+  });
+
+  proc.on('close', (code) => {
+    io.emit('exec:done', { execId, exitCode: code });
+    execRegistry.delete(execId);
+  });
+
+  console.log(`[EXEC] Started execId=${execId} command="${command}"`);
+  return execId;
+}
+
+export function killExec(execId: string): boolean {
+  const session = execRegistry.get(execId);
+  if (!session) return false;
+  session.process.kill('SIGKILL');
+  execRegistry.delete(execId);
+  console.log(`[EXEC] Killed execId=${execId}`);
+  return true;
+}
 
 // Track manually stopped services to prevent auto-restart loops
 const manuallyStoppedServices = new Set<string>();
@@ -191,7 +268,7 @@ export async function killProcessOnPort(port: string): Promise<{ ok: boolean; ms
 
         let killed = 0;
         pids.forEach(pid => {
-          exec(`taskkill /PID ${pid} /F`, (killError, killStdout, killStderr) => {
+          exec(`taskkill /PID ${pid} /F /T`, (killError, killStdout, killStderr) => {
             killed++;
             console.log(`Killed PID ${pid} on port ${port}:`, {
               error: killError?.message,
@@ -268,6 +345,23 @@ async function checkPidRunning(pid: number): Promise<boolean> {
   });
 }
 
+async function getAllRunningPids(): Promise<Set<number>> {
+  return new Promise((resolve) => {
+    exec('tasklist /FO CSV /NH', (err, stdout) => {
+      if (err || !stdout) {
+        resolve(new Set());
+        return;
+      }
+      const pids = new Set<number>();
+      for (const line of stdout.split('\n')) {
+        const match = line.match(/"[^"]+","(\d+)"/);
+        if (match) pids.add(parseInt(match[1], 10));
+      }
+      resolve(pids);
+    });
+  });
+}
+
 // ── Process name map ──────────────────────────────────────────────────────────
 
 const PROCESS_NAME_MAP: Record<string, string> = {
@@ -318,7 +412,7 @@ export function killApplicationProcesses(command: string): Promise<{ ok: boolean
               pids.forEach(pidLine => {
                 const pid = pidLine.split('=')[1];
                 console.log(`Killing cmd.exe PID ${pid} running ${batchName}`);
-                exec(`taskkill /PID ${pid} /F`, (killError, killStdout, killStderr) => {
+                exec(`taskkill /PID ${pid} /F /T`, (killError, killStdout, killStderr) => {
                   console.log(`Kill result for PID ${pid}:`, {
                     error: killError?.message,
                     stdout: killStdout?.trim(),
@@ -337,7 +431,7 @@ export function killApplicationProcesses(command: string): Promise<{ ok: boolean
       } else if (isAhk) {
         getAhkPidByScript(command).then(pid => {
           if (pid) {
-            exec(`taskkill /PID ${pid} /F`, (err, stdout, stderr) => {
+            exec(`taskkill /PID ${pid} /F /T`, (err, stdout, stderr) => {
               console.log(`Taskkill WMI PID ${pid} for ${command}:`, { stdout: stdout?.trim(), stderr: stderr?.trim() });
               resolve({ ok: true, msg: `Killed AHK process with PID ${pid}` });
             });
@@ -349,11 +443,11 @@ export function killApplicationProcesses(command: string): Promise<{ ok: boolean
         const exeName = path.basename(command);
         const exeWithoutExt = path.basename(command, '.exe');
 
-        exec(`taskkill /IM "${exeName}" /F`, (error, stdout, stderr) => {
+        exec(`taskkill /IM "${exeName}" /F /T`, (error, stdout, stderr) => {
           console.log(`Taskkill result for ${exeName}:`, { stdout: stdout?.trim(), stderr: stderr?.trim() });
 
           if (error && error.message.includes('not found')) {
-            exec(`taskkill /IM "${exeWithoutExt}.exe" /F`, (error2, stdout2, stderr2) => {
+            exec(`taskkill /IM "${exeWithoutExt}.exe" /F /T`, (error2, stdout2, stderr2) => {
               console.log(`Taskkill result for ${exeWithoutExt}.exe:`, { stdout: stdout2?.trim(), stderr: stderr2?.trim() });
 
               exec(`powershell "Get-Process -Name '${exeWithoutExt}' -ErrorAction SilentlyContinue | Stop-Process -Force"`, (psError, psStdout, psStderr) => {
@@ -663,8 +757,15 @@ export async function startService(service: Service, autoRestart = true): Promis
 
   console.log(`Starting service: ${service.name}`);
 
+  let actualCommand = service.command;
+  if (os.platform() === 'win32' && actualCommand.toLowerCase().startsWith('sudo ')) {
+    actualCommand = actualCommand.substring(5).trim();
+    console.log(`[SYS] Stripped "sudo" prefix on Windows: ${actualCommand}`);
+  }
+
+
   const args = service.args ? service.args.split(' ').filter(Boolean) : [];
-  const cleanCmd = service.command.replace(/"/g, ''); // Keep original casing for path resolution
+  const cleanCmd = actualCommand.replace(/"/g, ''); // Keep original casing for path resolution
 
   // ── 2. Working Directory Resolution ──
   let defaultCwd = process.cwd();
@@ -692,10 +793,13 @@ export async function startService(service: Service, autoRestart = true): Promis
       // ── FIX: Use explicit cmd.exe /c with shell: false — no CMD flash ──────
       // Pass the batch file path and args as separate arguments to cmd.exe
       const cmdPath = path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'System32', 'cmd.exe');
-      const spawnArgs = ['/c', service.command, ...args];
+      const spawnArgs = ['/c', actualCommand, ...args];
 
-      console.log(`[BATCH] Starting hidden: ${cmdPath} /c "${service.command}" ${args.join(' ')}`);
-      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting hidden batch: ${service.command}` });
+      console.log(`[BATCH] Starting hidden: ${cmdPath} /c "${actualCommand}" ${args.join(' ')}`);
+      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting hidden batch: ${actualCommand}` });
+
+      // Snapshot PIDs before spawn so we can detect processes launched via `start`
+      const preLaunchPids = await getAllRunningPids();
 
       proc = spawn(cmdPath, spawnArgs, {
         cwd,
@@ -708,13 +812,24 @@ export async function startService(service: Service, autoRestart = true): Promis
 
       entry.process = proc;
 
+      // After 3s, snapshot again and record any new PIDs as spawned by this batch
+      setTimeout(async () => {
+        if (!registry.has(service.id)) return;
+        const postLaunchPids = await getAllRunningPids();
+        const spawned = [...postLaunchPids].filter(pid => !preLaunchPids.has(pid));
+        if (spawned.length > 0) {
+          entry.spawnedPids = spawned;
+          console.log(`[BATCH] Detected ${spawned.length} spawned PIDs for ${service.id}: ${spawned.join(', ')}`);
+        }
+      }, 3000);
+
     } else if (isPsFile && os.platform() === 'win32') {
       // ── PowerShell scripts ────────────────────────────────────────────────
       const psPath = path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-      const spawnArgs = ['-ExecutionPolicy', 'Bypass', '-File', service.command, ...args];
+      const spawnArgs = ['-ExecutionPolicy', 'Bypass', '-File', actualCommand, ...args];
 
-      console.log(`[PS] Starting PowerShell script: ${service.command}`);
-      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting PowerShell script: ${service.command}` });
+      console.log(`[PS] Starting PowerShell script: ${actualCommand}`);
+      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting PowerShell script: ${actualCommand}` });
 
       proc = spawn(psPath, spawnArgs, {
         cwd,
@@ -730,10 +845,10 @@ export async function startService(service: Service, autoRestart = true): Promis
     } else if (minimized && os.platform() === 'win32') {
       // ── FIX: .exe with minimized flag — use windowsHide: true, no nircmd ──
       // Native windowsHide is sufficient; no nircmd dependency needed
-      console.log(`[MINIMIZED] Starting hidden exe: ${service.command}`);
-      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting minimized process: ${service.command}` });
+      console.log(`[MINIMIZED] Starting hidden exe: ${actualCommand}`);
+      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting minimized process: ${actualCommand}` });
 
-      proc = spawn(service.command, args, {
+      proc = spawn(actualCommand, args, {
         cwd,
         env: { ...process.env, ...(service.env || {}) },
         shell: false,       // No shell — prevents CMD flash
@@ -746,15 +861,15 @@ export async function startService(service: Service, autoRestart = true): Promis
 
       // Create a mock process object for status tracking since we can't track detached
       const mockKill = (): void => {
-        console.log(`[KILL] Terminating minimized process: ${service.command}`);
-        entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Terminating minimized process: ${service.command}` });
-        const exeBaseName = path.basename(service.command);
-        exec(`taskkill /IM "${exeBaseName}" /F`, (error, stdout, stderr) => {
+        console.log(`[KILL] Terminating minimized process: ${actualCommand}`);
+        entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Terminating minimized process: ${actualCommand}` });
+        const exeBaseName = path.basename(actualCommand);
+        exec(`taskkill /IM "${exeBaseName}" /F /T`, (error, stdout, stderr) => {
           if (error) {
-            console.log(`[KILL] Error terminating ${service.command}:`, error.message);
+            console.log(`[KILL] Error terminating ${actualCommand}:`, error.message);
             entry.logs.push({ t: new Date().toISOString(), line: `[ERR] Failed to terminate: ${error.message}` });
           } else {
-            console.log(`[KILL] Successfully terminated ${service.command}`);
+            console.log(`[KILL] Successfully terminated ${actualCommand}`);
             entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Process terminated successfully` });
           }
         });
@@ -768,12 +883,12 @@ export async function startService(service: Service, autoRestart = true): Promis
 
     } else if (isAhk && os.platform() === 'win32') {
       // ── AutoHotkey scripts ────────────────────────────────────────────────
-      console.log(`[AHK] Starting AutoHotkey script: ${service.command}`);
-      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting AutoHotkey script: ${service.command}` });
+      console.log(`[AHK] Starting AutoHotkey script: ${actualCommand}`);
+      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting AutoHotkey script: ${actualCommand}` });
 
       // ── 1.2 Runner Mapping ──
       const ahkRunner = 'AutoHotkey.exe';
-      const spawnArgs = [service.command, ...args];
+      const spawnArgs = [actualCommand, ...args];
 
       proc = spawn(ahkRunner, spawnArgs, {
         cwd,
@@ -789,12 +904,12 @@ export async function startService(service: Service, autoRestart = true): Promis
 
     } else if (isShortcut && os.platform() === 'win32') {
       // ── Windows Shortcuts (.url, .lnk) ────────────────────────────────────
-      console.log(`[SHORTCUT] Starting Windows shortcut: ${service.command}`);
-      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting shortcut: ${service.command}` });
+      console.log(`[SHORTCUT] Starting Windows shortcut: ${actualCommand}`);
+      entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Starting shortcut: ${actualCommand}` });
 
       const explorerPath = path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'explorer.exe');
 
-      proc = spawn(explorerPath, [service.command], {
+      proc = spawn(explorerPath, [actualCommand], {
         cwd,
         env: { ...process.env, ...(service.env || {}) },
         shell: false,       // Explorer natively handles the .lnk file
@@ -823,19 +938,37 @@ export async function startService(service: Service, autoRestart = true): Promis
       // This prevents CMD window flash while still finding executables in PATH
       const spawnEnv = {
         ...process.env,
+        PATH: getRefreshedPath(),
         ...(service.env || {}),
       };
 
       // Try to resolve the command from PATH
-      let resolvedCommand = service.command;
-      const cmdLower = service.command.toLowerCase();
+      let resolvedCommand = actualCommand;
+      const cmdLower = actualCommand.toLowerCase();
+
+      // ── Python venv auto-detection ────────────────────────────────────────
+      // If the command is python/python3 and there's a venv in the cwd, use it
+      const isPythonCmd = ['python', 'python3', 'python.exe', 'python3.exe'].includes(cmdLower);
+      if (isPythonCmd && cwd) {
+        const venvCandidates = [
+          path.join(cwd, 'venv', 'Scripts', 'python.exe'),
+          path.join(cwd, '.venv', 'Scripts', 'python.exe'),
+        ];
+        const venvPython = venvCandidates.find(p => fs.existsSync(p));
+        if (venvPython) {
+          resolvedCommand = venvPython;
+          console.log(`[VENV] Auto-detected virtual environment, using: ${venvPython}`);
+          entry.logs.push({ t: new Date().toISOString(), line: `[SYS] Using venv Python: ${venvPython}` });
+        }
+      }
 
       // Only try to resolve if it doesn't contain path separators and doesn't end with .exe
-      if (!cmdLower.includes('\\') && !cmdLower.includes('/') && !cmdLower.endsWith('.exe')) {
-        const resolved = resolveFromPath(service.command);
+      // (skip if already resolved to a venv)
+      if (resolvedCommand === actualCommand && !cmdLower.includes('\\') && !cmdLower.includes('/') && !cmdLower.endsWith('.exe')) {
+        const resolved = resolveFromPath(actualCommand);
         if (resolved) {
           resolvedCommand = resolved;
-          console.log(`[CMD] Resolved '${service.command}' to '${resolved}'`);
+          console.log(`[CMD] Resolved '${actualCommand}' to '${resolved}'`);
         }
       }
 
@@ -976,6 +1109,28 @@ export async function startService(service: Service, autoRestart = true): Promis
   return { ok: true, pid: proc?.pid ?? null };
 }
 
+// ── Kill verification ─────────────────────────────────────────────────────────
+
+async function waitUntilGone(service: Service | undefined, killedPid: number | null): Promise<void> {
+  const maxAttempts = 10; // 10 × 500ms = 5s
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(r => setTimeout(r, 500));
+
+    let isGone = true;
+
+    if (service?.port) {
+      const portOpen = await checkPort(service.port);
+      if (portOpen) isGone = false;
+    } else if (killedPid) {
+      const alive = await checkPidRunning(killedPid);
+      if (alive) isGone = false;
+    }
+
+    if (isGone) return;
+  }
+  console.log(`[STOP] Warning: process may still be running after 5s (pid=${killedPid}, port=${service?.port})`);
+}
+
 // ── Stop service ──────────────────────────────────────────────────────────────
 
 export async function stopService(id: string): Promise<{ ok: boolean; msg?: string }> {
@@ -1025,20 +1180,40 @@ export async function stopService(id: string): Promise<{ ok: boolean; msg?: stri
   manuallyStoppedServices.add(id);
 
   if (os.platform() === 'win32') {
-    // Kill by port first if available (most reliable for shell-spawned processes)
+    // Kill processes that were spawned via `start` in a batch file
+    if (entry.spawnedPids && entry.spawnedPids.length > 0) {
+      console.log(`[STOP] Killing ${entry.spawnedPids.length} spawned PIDs: ${entry.spawnedPids.join(', ')}`);
+      await Promise.all(entry.spawnedPids.map(spawnedPid =>
+        new Promise<void>((resolve) => {
+          exec(`taskkill /PID ${spawnedPid} /F /T`, (err) => {
+            if (err && !err.message.includes('not found')) {
+              console.log(`[STOP] Error killing spawned PID ${spawnedPid}:`, err.message);
+            } else {
+              console.log(`[STOP] Killed spawned PID ${spawnedPid}`);
+            }
+            resolve();
+          });
+        })
+      ));
+    }
+
+    // Kill by port — use known PID if available, otherwise look it up
     if (service?.port) {
-      await new Promise<void>((resolve) => {
-        exec(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${service.port} ^| findstr LISTENING') do taskkill /PID %a /F`, (err, stdout, stderr) => {
-          console.log(`Killed process on port ${service.port}:`, stdout?.trim() || stderr?.trim() || 'done');
-          resolve();
+      const portPid = entry.actualPid ?? await getPidOnPort(service.port);
+      if (portPid) {
+        await new Promise<void>((resolve) => {
+          exec(`taskkill /PID ${portPid} /F /T`, (err, stdout, stderr) => {
+            console.log(`Killed port PID ${portPid} on port ${service.port}:`, stdout?.trim() || stderr?.trim() || 'done');
+            resolve();
+          });
         });
-      });
+      }
     }
 
     // Kill by PID if we have one
     if (pid) {
       await new Promise<void>((resolve) => {
-        exec(`taskkill /PID ${pid} /F`, (err, stdout, stderr) => {
+        exec(`taskkill /PID ${pid} /F /T`, (err, stdout, stderr) => {
           if (err && !err.message.includes('not found')) {
             console.log(`Taskkill error:`, err.message);
           } else {
@@ -1072,10 +1247,14 @@ export async function stopService(id: string): Promise<{ ok: boolean; msg?: stri
     }
   }
 
-  // Set stopped state
+  // Wait for the process to actually be gone before declaring stopped
+  await waitUntilGone(service, pid);
+
+  // Set stopped state only after confirmation
   entry.state = 'stopped';
   entry.stateReason = 'Stopped by user';
   entry.actualPid = null;
+  entry.spawnedPids = undefined;
   registry.delete(id);
   broadcastStatus();
 
@@ -1144,7 +1323,8 @@ export async function detectRunningProcesses(): Promise<void> {
         restartCount: 0,
         state: 'running',
         stateReason: stateReason ?? 'Detected on startup',
-        actualPid: detectedPid
+        actualPid: detectedPid,
+        detectedExternally: true,
       });
     }
   }

@@ -41,6 +41,7 @@
 | 🔗 **Port Links** | Clickable links that open services directly in the browser |
 | 💾 **Persistent Config** | All services saved to `~\.winctl\services.json` |
 | 📊 **System Stats** | Live CPU, RAM, hostname, and uptime at a glance |
+| 💻 **System Info Popup** | Run fastfetch, neofetch, or winfetch from the sidebar — output rendered with full color in a popup |
 | 🚫 **No Docker / WSL** | Runs natively on Windows — just two `.exe` files |
 
 ---
@@ -124,7 +125,7 @@ All configuration is stored in `%USERPROFILE%\.winctl\`:
 | File | Contents |
 |---|---|
 | `services.json` | All services, folders, and their settings |
-| `settings.json` | App-wide preferences (theme, folder state, auto-start) |
+| `settings.json` | App-wide preferences (theme, folder state, auto-start, fetch tool) |
 | `themes\` | Built-in and custom theme JSON files |
 | `winctl.log` | Daemon startup and error log |
 
@@ -188,7 +189,7 @@ You can also build your own theme using the **Theme Creator** in Settings — cu
 
 [![CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey?style=for-the-badge)](LICENSE)
 
-**© 2025 Andrew-0807**
+**© 2026 Andrew-0807**
 
 This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International** license.
 

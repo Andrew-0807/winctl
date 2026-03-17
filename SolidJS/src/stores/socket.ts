@@ -1,8 +1,29 @@
 import { createSignal } from 'solid-js';
+import { io, Socket } from 'socket.io-client';
+import { appendExecLine, setExecDone } from './ui';
 
 // Connection state signals
-const [connected, setConnected] = createSignal(true);
-const [connecting, setConnecting] = createSignal(false);
+const [connected, setConnected] = createSignal(false);
+const [connecting, setConnecting] = createSignal(true);
+
+export const socket: Socket = io();
+
+socket.on('connect', () => {
+  setConnected(true);
+  setConnecting(false);
+});
+
+socket.on('disconnect', () => {
+  setConnected(false);
+});
+
+socket.on('exec:output', (data: { execId: string; stream: 'stdout' | 'stderr'; line: string }) => {
+  appendExecLine(data.execId, { stream: data.stream, line: data.line });
+});
+
+socket.on('exec:done', (data: { execId: string; exitCode: number | null }) => {
+  setExecDone(data.execId, data.exitCode);
+});
 
 // Types
 interface ServiceStatus {
@@ -35,6 +56,8 @@ interface Settings {
   folderStatePreference: string;
   showFolderCount: boolean;
   autoStart: boolean;
+  keepServicesOnExit: boolean;
+  fetchTool?: string | null;
 }
 
 interface SystemInfo {
@@ -175,6 +198,14 @@ async function getServiceLogs(id: string): Promise<Array<{ t: string; line: stri
 }
 
 
+async function getAvailableTools(): Promise<{ tools: string[] }> {
+  return apiFetch<{ tools: string[] }>('/api/sysinfo/tools');
+}
+
+async function runFetchTool(): Promise<{ output: string }> {
+  return apiFetch<{ output: string }>('/api/sysinfo/run');
+}
+
 async function saveSettings(settings: Settings): Promise<void> {
   return apiFetch<void>('/api/settings', {
     method: 'PUT',
@@ -183,8 +214,28 @@ async function saveSettings(settings: Settings): Promise<void> {
   });
 }
 
+async function shutdownDaemon(keepServices = false): Promise<void> {
+  return apiFetch<void>('/api/shutdown', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keepServices }),
+  });
+}
+
 async function getThemes(): Promise<Theme[]> {
   return apiFetch<Theme[]>('/api/themes');
+}
+
+async function postExec(command: string, cwd?: string): Promise<{ execId: string }> {
+  return apiFetch<{ execId: string }>('/api/exec', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command, cwd }),
+  });
+}
+
+async function killExecSession(execId: string): Promise<void> {
+  return apiFetch<void>(`/api/exec/${execId}/kill`, { method: 'POST' });
 }
 
 // Export everything
@@ -211,7 +262,12 @@ export {
   deleteFolder,
   getServiceLogs,
   saveSettings,
+  shutdownDaemon,
   getThemes,
+  getAvailableTools,
+  runFetchTool,
+  postExec,
+  killExecSession,
 };
 
 export type {

@@ -25,7 +25,9 @@ import {
   stopService,
   getStatus,
   getRegistry,
-  broadcastStatus
+  broadcastStatus,
+  runExec,
+  killExec
 } from './process-manager.js';
 
 // ── Input validation ──────────────────────────────────────────────────────────
@@ -139,7 +141,7 @@ export function disableAutostart(): Promise<void> {
 
 // ── Route setup ───────────────────────────────────────────────────────────────
 
-export function setupRoutes(app: Express, io: Server, onTrayRefresh?: () => void, onShutdown?: (force: boolean) => void): void {
+export function setupRoutes(app: Express, io: Server, onTrayRefresh?: () => void, onShutdown?: (force: boolean, keepServices?: boolean) => void): void {
 
   // ── Services ────────────────────────────────────────────────────────────────
 
@@ -285,12 +287,13 @@ export function setupRoutes(app: Express, io: Server, onTrayRefresh?: () => void
 
   // ── Daemon shutdown ───────────────────────────────────────────────────────────
 
-  app.post('/api/shutdown', (_req: Request, res: Response) => {
-    console.log('[SHUTDOWN] Daemon shutdown requested via API');
+  app.post('/api/shutdown', (req: Request, res: Response) => {
+    const { keepServices = false } = req.body as { keepServices?: boolean };
+    console.log(`[SHUTDOWN] Daemon shutdown requested via API (keepServices=${keepServices})`);
     res.json({ ok: true });
     // Graceful shutdown after response is sent
     setTimeout(() => {
-      if (onShutdown) onShutdown(false);
+      if (onShutdown) onShutdown(false, keepServices);
       else process.exit(0);
     }, 200);
   });
@@ -383,6 +386,37 @@ export function setupRoutes(app: Express, io: Server, onTrayRefresh?: () => void
   });
 
   // ── System ──────────────────────────────────────────────────────────────────
+
+  app.get('/api/sysinfo/tools', async (_req: Request, res: Response) => {
+    const candidates = ['fastfetch', 'neofetch', 'winfetch'];
+    const checks = await Promise.all(
+      candidates.map(tool => new Promise<boolean>(resolve => {
+        exec(`where ${tool}`, (err) => resolve(!err));
+      }))
+    );
+    res.json({ tools: candidates.filter((_, i) => checks[i]) });
+  });
+
+  app.get('/api/sysinfo/run', (_req: Request, res: Response) => {
+    const s = loadSettings();
+    const tool = s.fetchTool;
+    if (!tool) return res.status(400).json({ error: 'No fetch tool configured' });
+    // Force color; --logo-type none removes the ASCII logo which uses cursor-positioning
+    // that can't be rendered in a <pre> block (produces artifacts like "[40C").
+    const colorFlags: Record<string, string> = {
+      fastfetch: '--pipe false',
+      neofetch: '',
+      winfetch: '',
+    };
+    const flags = colorFlags[tool] ?? '';
+    const cmd = flags ? `${tool} ${flags}` : tool;
+    const env = { ...process.env, COLORTERM: 'truecolor', FORCE_COLOR: '1' };
+    delete (env as Record<string, string | undefined>).NO_COLOR;
+    exec(cmd, { timeout: 10000, env }, (err, stdout, stderr) => {
+      if (err) return res.status(500).json({ error: stderr || err.message });
+      res.json({ output: stdout });
+    });
+  });
 
   app.get('/api/system', (_req: Request, res: Response) => {
     res.json({
@@ -487,6 +521,36 @@ export function setupRoutes(app: Express, io: Server, onTrayRefresh?: () => void
     // Call the tray refresh handler directly — do NOT use io.emit('tray:refresh')
     // because io.on('tray:refresh') is NOT a socket-message event and never fires.
     if (onTrayRefresh) onTrayRefresh();
+    res.json({ ok: true });
+  });
+
+  // ── Ad-hoc exec ──────────────────────────────────────────────────────────────
+
+  // NOTE: /exec/:execId/kill must not conflict with anything — /exec is a new top-level path
+  app.post('/api/exec', (req: Request, res: Response) => {
+    const { command, cwd, env } = req.body as { command?: unknown; cwd?: unknown; env?: unknown };
+
+    const sanitizedCommand = sanitizeString(command);
+    if (!sanitizedCommand || sanitizedCommand.length > 2000) {
+      return res.status(400).json({ error: 'Invalid or missing command (max 2000 chars)' });
+    }
+    const sanitizedCwd = sanitizeString(cwd as unknown, true) || undefined;
+    const sanitizedEnv = (env && typeof env === 'object' && !Array.isArray(env))
+      ? Object.fromEntries(
+          Object.entries(env as Record<string, unknown>)
+            .filter(([, v]) => typeof v === 'string')
+            .map(([k, v]) => [k, v as string])
+        )
+      : undefined;
+
+    const execId = runExec(io, { command: sanitizedCommand, cwd: sanitizedCwd, env: sanitizedEnv });
+    res.json({ execId });
+  });
+
+  app.post('/api/exec/:execId/kill', (req: Request, res: Response) => {
+    const execId = param(req, 'execId');
+    const killed = killExec(execId);
+    if (!killed) return res.status(404).json({ error: 'Exec session not found' });
     res.json({ ok: true });
   });
 }

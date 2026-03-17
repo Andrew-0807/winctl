@@ -1,4 +1,4 @@
-import { createStore, produce } from 'solid-js/store';
+import { createStore, reconcile } from 'solid-js/store';
 import { createSignal } from 'solid-js';
 import * as api from './socket';
 import type { ServiceStatus as Service, Folder, Settings, SystemInfo } from './socket';
@@ -12,10 +12,20 @@ const [settings, setSettings] = createStore<api.Settings>({
   folderStatePreference: 'remember',
   showFolderCount: true,
   autoStart: false,
+  fetchTool: null,
 });
 const [systemInfo, setSystemInfo] = createSignal<api.SystemInfo | null>(null);
 const [loading, setLoading] = createSignal(true);
 const [error, setError] = createSignal<string | null>(null);
+
+// Apply real-time status updates broadcast from the server
+// reconcile() diffs by 'id' so only changed properties update — no card re-mounts
+api.socket.on('status', (payload: api.StatusPayload) => {
+  setServices(reconcile(payload.services, { key: 'id', merge: true }));
+  setFolders(reconcile(payload.folders, { key: 'id', merge: true }));
+  setSettings(reconcile(payload.settings));
+  setLoading(false);
+});
 
 // Load initial data
 export async function loadServices(): Promise<void> {
@@ -24,9 +34,9 @@ export async function loadServices(): Promise<void> {
 
   try {
     const status = await api.getStatus();
-    setServices(status.services);
-    setFolders(status.folders);
-    setSettings(status.settings);
+    setServices(reconcile(status.services, { key: 'id', merge: true }));
+    setFolders(reconcile(status.folders, { key: 'id', merge: true }));
+    setSettings(reconcile(status.settings));
     setLoading(false);
   } catch (e) {
     setError(e instanceof Error ? e.message : 'Unknown error');
@@ -48,7 +58,6 @@ export async function loadSystem(): Promise<void> {
 export async function startService(id: string): Promise<boolean> {
   try {
     await api.startService(id);
-    await loadServices(); // Refresh status
     return true;
   } catch (e) {
     console.error('Failed to start service:', e);
@@ -60,7 +69,6 @@ export async function startService(id: string): Promise<boolean> {
 export async function stopService(id: string): Promise<boolean> {
   try {
     await api.stopService(id);
-    await loadServices(); // Refresh status
     return true;
   } catch (e) {
     console.error('Failed to stop service:', e);
@@ -72,7 +80,6 @@ export async function stopService(id: string): Promise<boolean> {
 export async function restartService(id: string): Promise<boolean> {
   try {
     await api.restartService(id);
-    await loadServices(); // Refresh status
     return true;
   } catch (e) {
     console.error('Failed to restart service:', e);
@@ -88,7 +95,6 @@ export async function saveService(data: Partial<api.ServiceStatus>, id?: string)
     } else {
       await api.createService(data as api.ServiceStatus);
     }
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to save service:', e);
@@ -100,7 +106,6 @@ export async function saveService(data: Partial<api.ServiceStatus>, id?: string)
 export async function deleteService(id: string): Promise<boolean> {
   try {
     await api.deleteService(id);
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to delete service:', e);
@@ -112,7 +117,6 @@ export async function deleteService(id: string): Promise<boolean> {
 export async function reorderServices(orderedIds: string[]): Promise<boolean> {
   try {
     await api.reorderServices(orderedIds);
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to reorder services:', e);
@@ -154,7 +158,6 @@ export async function saveFolder(name: string, id?: string): Promise<boolean> {
     } else {
       await api.createFolder({ id: crypto.randomUUID(), name });
     }
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to save folder:', e);
@@ -166,7 +169,6 @@ export async function saveFolder(name: string, id?: string): Promise<boolean> {
 export async function deleteFolder(id: string): Promise<boolean> {
   try {
     await api.deleteFolder(id);
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to delete folder:', e);
@@ -194,7 +196,6 @@ export async function moveServiceToFolder(serviceId: string, folderId: string | 
     if (!service) return false;
 
     await api.updateService({ ...service, folderId });
-    await loadServices(); // Refresh
     return true;
   } catch (e) {
     console.error('Failed to move service to folder:', e);

@@ -38,6 +38,8 @@ export interface Settings {
   folderStatePreference: 'remember' | 'open' | 'closed';
   showFolderCount: boolean;
   autoStart: boolean;
+  keepServicesOnExit: boolean;
+  fetchTool?: string | null;
 }
 
 // ── Runtime registry types ──────────────────────────────────────────────────
@@ -64,6 +66,8 @@ export interface ServiceEntry {
   state: ServiceState;
   stateReason: string;
   actualPid?: number | null;
+  spawnedPids?: number[];
+  detectedExternally?: boolean;
 }
 
 // ── Theme types ─────────────────────────────────────────────────────────────
@@ -116,6 +120,20 @@ export interface ValidationResult {
   isValid: boolean;
   errors: string[];
   sanitized: Omit<Service, 'createdAt'>;
+}
+
+// ── Ad-hoc exec types ───────────────────────────────────────────────────────
+
+export interface ExecRequest {
+  command: string;
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
+export interface ExecSession {
+  process: import('child_process').ChildProcess;
+  execId: string;
+  startedAt: string;
 }
 
 // ── API response types ──────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { Service, Folder, ServiceConfig, Settings, Theme, ThemeColors } from './types.js';
+import { enableAutostart, disableAutostart } from './autostart.js';
 
 // ── Paths ───────────────────────────────────────────────────────────────────
 
@@ -459,7 +460,8 @@ export function loadSettings(): Settings {
   const defaultSettings: Settings = {
     folderStatePreference: 'remember',
     showFolderCount: true,
-    autoStart: false
+    autoStart: false,
+    keepServicesOnExit: false,
   };
 
   if (!fs.existsSync(SETTINGS_FILE)) {
@@ -481,6 +483,17 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(settings: Settings): void {
+  const oldSettings = settingsCache;
+  if (oldSettings && oldSettings.autoStart !== settings.autoStart) {
+    if (settings.autoStart) {
+      enableAutostart();
+    } else {
+      disableAutostart();
+    }
+  } else if (!oldSettings && settings.autoStart) {
+    enableAutostart();
+  }
+
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
   settingsCache = settings;
   settingsCacheTime = Date.now();

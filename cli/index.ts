@@ -20,6 +20,7 @@ import http from 'http';
 import { exec, spawn } from 'child_process';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 
 let PORT = parseInt(process.env.WINCTL_PORT || '8080', 10);
 let BASE = `http://127.0.0.1:${PORT}`;
@@ -482,8 +483,33 @@ async function cmdInit(): Promise<void> {
         console.log(dim('   Restart your terminal for changes to take effect.'));
     }
 
-    // Install as Windows Service (requires admin)
+    // Configure the autostart if enabled in settings
+    const settingsPath = path.join(os.homedir(), '.winctl', 'settings.json');
+    let autoStartEnabled = false;
+    try {
+        if (fs.existsSync(settingsPath)) {
+            const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+            if (settings && settings.autoStart) {
+                autoStartEnabled = true;
+            }
+        }
+    } catch { /* ignore */ }
+
     const daemonPath = path.join(exeDir, 'winctl-daemon.exe');
+
+    if (autoStartEnabled) {
+        console.log('\n' + cyan('Configuring user autostart-on-boot...'));
+        const regKey = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+        await new Promise<void>((resolve) => {
+            exec(`reg add "${regKey}" /v WinCTL /t REG_SZ /d "\\"${daemonPath}\\"" /f`, (err) => {
+                if (err) console.log(yellow('⚠  Could not configure autostart: ' + err.message));
+                else console.log(green('✅ Autostart configured.'));
+                resolve();
+            });
+        });
+    }
+
+    // Install as Windows Service (requires admin)
     console.log('\n' + cyan('Installing Windows Service...'));
 
     try {

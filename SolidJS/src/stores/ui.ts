@@ -4,9 +4,20 @@ import { createStore, produce } from 'solid-js/store';
 // ── Filter/View State ────────────────────────────────────────────────────────
 
 export type FilterType = 'all' | 'running' | 'stopped';
+export type ViewType = 'list' | 'gallery';
 
 const [currentFilter, setCurrentFilter] = createSignal<FilterType>('all');
-const [currentView, setCurrentView] = createSignal<FilterType>('all');
+function loadViewPreference(): ViewType {
+  const stored = localStorage.getItem('currentView');
+  return (stored === 'gallery' || stored === 'list') ? stored : 'list';
+}
+
+const [currentView, _setCurrentView] = createSignal<ViewType>(loadViewPreference());
+
+function setCurrentView(view: ViewType): void {
+  _setCurrentView(view);
+  localStorage.setItem('currentView', view);
+}
 const [searchQuery, setSearchQuery] = createSignal('');
 
 // ── Panel State ────────────────────────────────────────────────────────────────
@@ -79,6 +90,7 @@ const [folderModalOpen, setFolderModalOpen] = createSignal(false);
 const [folderModalEditId, setFolderModalEditId] = createSignal<string | null>(null);
 const [settingsModalOpen, setSettingsModalOpen] = createSignal(false);
 const [themeCreatorOpen, setThemeCreatorOpen] = createSignal(false);
+const [systemInfoModalOpen, setSystemInfoModalOpen] = createSignal(false);
 
 // ── FAB State ────────────────────────────────────────────────────────────────
 
@@ -105,7 +117,7 @@ let toastId = 0;
 export function toast(msg: string, type: '' | 'success' | 'error' = ''): void {
   const id = ++toastId;
   setToasts(produce((prev) => [...prev, { id, msg, type }]));
-  
+
   setTimeout(() => {
     setToasts(produce((prev) => prev.filter((t) => t.id !== id)));
   }, 3200);
@@ -156,13 +168,13 @@ export function getPanelTabValue(id: string): string {
 export function toggleFolder(id: string): void {
   const current = expandedFolders();
   const next = new Set(current);
-  
+
   if (next.has(id)) {
     next.delete(id);
   } else {
     next.add(id);
   }
-  
+
   setExpandedFolders(next);
   saveExpandedFolders(next);
 }
@@ -256,6 +268,20 @@ export function closeSettingsModal(): void {
 }
 
 /**
+ * Open system info modal
+ */
+export function openSystemInfoModal(): void {
+  setSystemInfoModalOpen(true);
+}
+
+/**
+ * Close system info modal
+ */
+export function closeSystemInfoModal(): void {
+  setSystemInfoModalOpen(false);
+}
+
+/**
  * Open theme creator modal
  */
 export function openThemeCreator(): void {
@@ -307,10 +333,11 @@ export function handleKeyDown(e: KeyboardEvent): void {
     closeFolderModal();
     closeSettingsModal();
     closeThemeCreator();
+    closeSystemInfoModal();
     hideContextMenu();
     return;
   }
-  
+
   // Ctrl/Cmd + K - focus search
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
@@ -318,28 +345,77 @@ export function handleKeyDown(e: KeyboardEvent): void {
     searchEl?.focus();
     return;
   }
-  
+
   // Shift + N - new service
   if (e.shiftKey && e.key === 'N') {
     e.preventDefault();
     openServiceModal();
     return;
   }
-  
+
   // Shift + F - new folder
   if (e.shiftKey && e.key === 'F') {
     e.preventDefault();
     openFolderModal();
     return;
   }
-  
+
   // ? - open settings (when not in input)
-  if (e.key === '?' && !e.ctrlKey && !e.metaKey && 
-      document.activeElement?.tagName !== 'INPUT') {
+  if (e.key === '?' && !e.ctrlKey && !e.metaKey &&
+    document.activeElement?.tagName !== 'INPUT') {
     e.preventDefault();
     openSettingsModal();
     return;
   }
+}
+
+// ── Run Command Panel State ───────────────────────────────────────────────────
+
+export interface ExecLine {
+  stream: 'stdout' | 'stderr';
+  line: string;
+}
+
+interface ExecState {
+  command: string;
+  execId: string | null;
+  lines: ExecLine[];
+  exitCode: number | null;
+}
+
+const [execState, setExecState] = createSignal<ExecState>({
+  command: '',
+  execId: null,
+  lines: [],
+  exitCode: null,
+});
+
+const [runPanelOpen, setRunPanelOpen] = createSignal(false);
+
+export function setExecCommand(command: string): void {
+  setExecState(s => ({ ...s, command }));
+}
+
+export function setExecRunning(execId: string): void {
+  setExecState(s => ({ ...s, execId, lines: [], exitCode: null }));
+}
+
+export function appendExecLine(execId: string, line: ExecLine): void {
+  if (execState().execId !== execId) return;
+  setExecState(s => ({ ...s, lines: [...s.lines, line] }));
+}
+
+export function setExecDone(execId: string, exitCode: number | null): void {
+  if (execState().execId !== execId) return;
+  setExecState(s => ({ ...s, execId: null, exitCode }));
+}
+
+export function clearExec(): void {
+  setExecState(s => ({ ...s, lines: [], exitCode: null, execId: null }));
+}
+
+export function toggleRunPanel(): void {
+  setRunPanelOpen(v => !v);
 }
 
 // ── Export all state ─────────────────────────────────────────────────────────
@@ -369,6 +445,8 @@ export {
   setSettingsModalOpen,
   themeCreatorOpen,
   setThemeCreatorOpen,
+  systemInfoModalOpen,
+  setSystemInfoModalOpen,
   fabOpen,
   setFabOpen,
   draggedServiceId,
@@ -377,5 +455,7 @@ export {
   setToasts,
   contextMenuOpen,
   contextMenuPosition,
-  contextFolderId
+  contextFolderId,
+  execState,
+  runPanelOpen,
 };

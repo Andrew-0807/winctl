@@ -1,6 +1,6 @@
 import { Component, For, Show, createMemo } from 'solid-js';
 import { services, folders, moveServiceToFolder, reorderServices } from '../stores/services';
-import { currentFilter, searchQuery, draggedServiceId } from '../stores/ui';
+import { currentFilter, searchQuery, draggedServiceId, currentView } from '../stores/ui';
 import ServiceCard from './ServiceCard';
 import FolderCard from './FolderCard';
 
@@ -9,26 +9,26 @@ const ServiceGrid: Component = () => {
   const filteredServices = createMemo(() => {
     const query = searchQuery().toLowerCase();
     const filter = currentFilter();
-    
+
     return services.filter(s => {
       // Search filter
-      const matchSearch = !query || 
-        s.name.toLowerCase().includes(query) || 
-        (s.command || '').toLowerCase().includes(query) || 
+      const matchSearch = !query ||
+        s.name.toLowerCase().includes(query) ||
+        (s.command || '').toLowerCase().includes(query) ||
         (s.description || '').toLowerCase().includes(query);
-      
+
       // Status filter
       const matchFilter = filter === 'all' || s.status === filter;
-      
+
       return matchSearch && matchFilter;
     });
   });
-  
+
   // Separate root services and folder services
-  const rootServices = createMemo(() => 
+  const rootServices = createMemo(() =>
     filteredServices().filter(s => !s.folderId)
   );
-  
+
   const folderMap = createMemo(() => {
     const map: Record<string, typeof services> = {};
     folders.forEach(f => { map[f.id] = []; });
@@ -39,20 +39,20 @@ const ServiceGrid: Component = () => {
     });
     return map;
   });
-  
+
   // Check if empty
-  const isEmpty = createMemo(() => 
+  const isEmpty = createMemo(() =>
     filteredServices().length === 0 && folders.length === 0
   );
-  
+
   // Drag and drop handlers for root drop zone
   let rootDropZoneRef: HTMLDivElement | undefined;
   let dragOverServiceId: string | null = null;
-  
+
   const handleRootDragOver = (e: DragEvent) => {
     e.preventDefault();
   };
-  
+
   const handleRootDrop = async (e: DragEvent) => {
     e.preventDefault();
     const draggedId = draggedServiceId();
@@ -79,7 +79,7 @@ const ServiceGrid: Component = () => {
   const handleDrop = async (e: DragEvent, targetServiceId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const draggedId = e.dataTransfer?.getData('text/plain');
     if (!draggedId || draggedId === targetServiceId) return;
 
@@ -91,11 +91,11 @@ const ServiceGrid: Component = () => {
 
     // Get services in the same folder (or root)
     const servicesInContext = services.filter(s => s.folderId === targetFolderId);
-    
+
     // Find indices
     const draggedIndex = servicesInContext.findIndex(s => s.id === draggedId);
     const targetIndex = servicesInContext.findIndex(s => s.id === targetServiceId);
-    
+
     if (draggedIndex === -1 || targetIndex === -1) return;
 
     // Reorder in array
@@ -105,10 +105,10 @@ const ServiceGrid: Component = () => {
 
     // Extract just the IDs for API
     const orderedIds = reordered.map(s => s.id);
-    
+
     // Call API to persist reorder
     await reorderServices(orderedIds);
-    
+
     dragOverServiceId = null;
   };
 
@@ -117,29 +117,29 @@ const ServiceGrid: Component = () => {
   };
 
   return (
-    <div class="services-grid" id="services-list">
+    <div class={`services-grid view-${currentView()}`} id="services-list">
       <Show when={isEmpty()}>
         <div class="empty-state">
           <h3>No services found</h3>
           <p>Add a service using the button in the sidebar, or adjust your filter.</p>
         </div>
       </Show>
-      
+
       <Show when={!isEmpty()}>
         {/* Render folders */}
         <For each={folders}>
           {(folder) => (
-            <FolderCard 
-              folder={folder} 
-              services={folderMap()[folder.id] || []} 
+            <FolderCard
+              folder={folder}
+              services={folderMap()[folder.id] || []}
             />
           )}
         </For>
-        
+
         {/* Render root services */}
         <Show when={rootServices().length > 0}>
-          <div 
-            class="drop-zone" 
+          <div
+            class="drop-zone"
             id="root-drop-zone"
             onDragOver={handleRootDragOver}
             onDrop={handleRootDrop}
@@ -153,6 +153,7 @@ const ServiceGrid: Component = () => {
                   onDrop={(e) => handleDrop(e, service.id)}
                   onDragEnd={handleDragEnd}
                   style="cursor: grab;"
+                  class="svc-wrapper"
                 >
                   <ServiceCard service={service} inFolder={false} />
                 </div>
@@ -160,10 +161,10 @@ const ServiceGrid: Component = () => {
             </For>
           </div>
         </Show>
-        
+
         <Show when={folders.length > 0 && rootServices().length === 0}>
-          <div 
-            class="drop-zone" 
+          <div
+            class="drop-zone"
             id="root-drop-zone"
             onDragOver={handleRootDragOver}
             onDrop={handleRootDrop}
