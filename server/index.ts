@@ -99,12 +99,6 @@ interface SysTrayConstructor {
 }
 
 let SysTrayClass: SysTrayConstructor | null = null;
-try {
-  const mod = require('systray');
-  SysTrayClass = (mod?.default ?? mod) as SysTrayConstructor;
-} catch {
-  console.log('[TRAY] systray module not available');
-}
 
 let trayInstance: SysTrayInstance | null = null;
 
@@ -135,7 +129,16 @@ function getTrayMenuDef(iconBase64: string): SysTrayMenu {
 }
 
 function initTray(): void {
-  if (!SysTrayClass || os.platform() !== 'win32') return;
+  if (os.platform() !== 'win32') return;
+  if (!SysTrayClass) {
+    try {
+      const mod = require('systray');
+      SysTrayClass = (mod?.default ?? mod) as SysTrayConstructor;
+    } catch {
+      console.log('[TRAY] systray module not available');
+      return;
+    }
+  }
 
   // Resolve icon relative to the actual exe location first (works in pkg builds).
   // Fall back to __dirname-relative paths for dev mode (tsx / ts-node).
