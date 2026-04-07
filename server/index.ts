@@ -52,9 +52,9 @@ process.on('unhandledRejection', (err: unknown) => {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-// Use WINCTL_PORT env var first (allows override), fall back to settings.json, then default
-const settings_ = loadSettings();
-const PORT = parseInt(process.env.WINCTL_PORT || String(settings_.port || '8888'), 10);
+// PORT is resolved inside main() after config dirs are ensured.
+// Declared here so it's accessible to getTrayMenuDef and other module-level functions.
+let PORT = 8888;
 
 function getLocalIPs(): string[] {
   const ifaces = os.networkInterfaces();
@@ -264,10 +264,15 @@ export { shutdownDaemon };
 
 async function main(): Promise<void> {
   console.time('startup');
-  console.log(`[STARTUP] WinCTL starting on port ${PORT}`);
 
   ensureConfigDirs();
   migrateSettings();
+
+  // Resolve PORT inside main() after config dirs exist (avoids pre-timer FS read)
+  const settings_ = loadSettings();
+  PORT = parseInt(process.env.WINCTL_PORT || String(settings_.port || '8888'), 10);
+  console.log(`[STARTUP] WinCTL starting on port ${PORT}`);
+
   ensureApiSecret();
 
   // Log session state for debugging
