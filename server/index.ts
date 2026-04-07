@@ -391,8 +391,8 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
+  console.timeEnd('startup');
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.timeEnd('startup');
     const ips = getLocalIPs();
     console.log('WinCTL running:');
     console.log(`  Local:   http://127.0.0.1:${PORT}`);
