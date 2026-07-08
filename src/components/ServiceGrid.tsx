@@ -185,8 +185,8 @@ const ServiceGrid: React.FC = () => {
           <>
             {folders.length > 0 && (
               <SortableContext items={folders.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-                {folders.map((folder) => (
-                  <FolderCard key={folder.id} folder={folder} services={folderMap[folder.id] || []} />
+                {folders.map((folder, i) => (
+                  <FolderCard key={folder.id} folder={folder} services={folderMap[folder.id] || []} index={i} />
                 ))}
               </SortableContext>
             )}

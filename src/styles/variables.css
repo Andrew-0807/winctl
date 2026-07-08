@@ -66,4 +66,26 @@
 
   /* Motion */
   --transition-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layering & Elevation (z-index) */
+  --z-base: 1;
+  --z-header: 100;
+  --z-dragging: 110;
+  --z-sidebar-backdrop: 140;
+  --z-sidebar: 150;
+  --z-modal-backdrop: 200;
+  --z-modal: 210;
+  --z-context-menu: 300;
+  --z-toast: 400;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
 }

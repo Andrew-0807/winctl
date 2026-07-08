@@ -60,13 +60,15 @@ const Header: React.FC = () => {
         </div>
         <div className="stat-chip">
           <span className="dot dot-green"></span>
-          <span>{runningCount}</span> running
+          <span>{runningCount}</span>
+          <span className="chip-label"> running</span>
         </div>
         <div className="stat-chip">
           <span className="dot dot-red"></span>
-          <span>{stoppedCount}</span> stopped
+          <span>{stoppedCount}</span>
+          <span className="chip-label"> stopped</span>
         </div>
-        <div className="stat-chip">{hostname}</div>
+        <div className="stat-chip hostname">{hostname}</div>
       </div>
 
       <button className="mobile-settings-btn" onClick={openSettingsModal} title="Settings">

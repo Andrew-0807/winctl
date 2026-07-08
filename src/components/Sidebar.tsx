@@ -17,6 +17,8 @@ const Sidebar: React.FC = () => {
   const toggleSidebarMobile = useUIStore((s) => s.toggleSidebarMobile);
   const openSettingsModal = useUIStore((s) => s.openSettingsModal);
   const openSystemInfoModal = useUIStore((s) => s.openSystemInfoModal);
+  const openServiceModal = useUIStore((s) => s.openServiceModal);
+  const openFolderModal = useUIStore((s) => s.openFolderModal);
   const confirm = useUIStore((s) => s.confirm);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -98,17 +100,19 @@ const Sidebar: React.FC = () => {
         <div className="sidebar-content">
           <div className="sidebar-label" style={{ '--nav-index': 0 } as React.CSSProperties}>Actions</div>
 
-          {renderNavItem({ id: 'start-all', label: 'Start All', icon: 'Play', action: startAll, index: 1 })}
-          {renderNavItem({ id: 'stop-all', label: 'Stop All', icon: 'Square', action: stopAll, index: 2 })}
-          {renderNavItem({ id: 'sys-info', label: 'System Info', icon: 'Laptop', action: openSystemInfoModal, index: 3 })}
+          {renderNavItem({ id: 'new-service', label: 'New Service', icon: 'Plus', action: openServiceModal, index: 1 })}
+          {renderNavItem({ id: 'new-folder', label: 'New Folder', icon: 'FolderPlus', action: openFolderModal, index: 2 })}
+          {renderNavItem({ id: 'start-all', label: 'Start All', icon: 'Play', action: startAll, index: 3 })}
+          {renderNavItem({ id: 'stop-all', label: 'Stop All', icon: 'Square', action: stopAll, index: 4 })}
+          {renderNavItem({ id: 'sys-info', label: 'System Info', icon: 'Laptop', action: openSystemInfoModal, index: 5 })}
 
-          <div className="sidebar-label mt-4" style={{ '--nav-index': 4 } as React.CSSProperties}>Power</div>
+          <div className="sidebar-label mt-4" style={{ '--nav-index': 6 } as React.CSSProperties}>Power</div>
 
-          {renderNavItem({ id: 'display-off', label: 'Display Off', icon: 'Monitor', action: () => pcAction('display-off'), index: 5 })}
-          {renderNavItem({ id: 'sleep', label: 'Sleep', icon: 'Moon', action: () => pcAction('sleep'), index: 6 })}
-          {renderNavItem({ id: 'lock', label: 'Lock PC', icon: 'Shield', action: () => pcAction('lock'), index: 7 })}
-          {renderNavItem({ id: 'restart', label: 'Restart', icon: 'RefreshCw', action: () => pcAction('restart'), index: 8 })}
-          {renderNavItem({ id: 'shutdown', label: 'Shutdown', icon: 'Power', action: () => pcAction('shutdown'), index: 9 })}
+          {renderNavItem({ id: 'display-off', label: 'Display Off', icon: 'Monitor', action: () => pcAction('display-off'), index: 7 })}
+          {renderNavItem({ id: 'sleep', label: 'Sleep', icon: 'Moon', action: () => pcAction('sleep'), index: 8 })}
+          {renderNavItem({ id: 'lock', label: 'Lock PC', icon: 'Shield', action: () => pcAction('lock'), index: 9 })}
+          {renderNavItem({ id: 'restart', label: 'Restart', icon: 'RefreshCw', action: () => pcAction('restart'), index: 10 })}
+          {renderNavItem({ id: 'shutdown', label: 'Shutdown', icon: 'Power', action: () => pcAction('shutdown'), index: 11 })}
         </div>
 
         <div className="mt-auto py-4">

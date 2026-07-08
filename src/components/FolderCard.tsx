@@ -17,9 +17,10 @@ import Icon from './Icon';
 interface FolderCardProps {
   folder: Folder;
   services: Service[];
+  index?: number;
 }
 
-const FolderCard: React.FC<FolderCardProps> = ({ folder, services }) => {
+const FolderCard: React.FC<FolderCardProps> = ({ folder, services, index = 0 }) => {
   const settings = useServiceStore((s) => s.settings);
   const updateSettings = useServiceStore((s) => s.updateSettings);
   const startService = useServiceStore((s) => s.startService);
@@ -112,7 +113,8 @@ const FolderCard: React.FC<FolderCardProps> = ({ folder, services }) => {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  };
+    '--card-index': index,
+  } as React.CSSProperties;
 
   return (
     <div
