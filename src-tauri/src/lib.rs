@@ -2019,7 +2019,19 @@ fn run_gui_with_state(state: AppState) {
     // HTTP server already started by run() — don't start again
     let state_clone = state.clone();
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
+            // Check for updates on startup; download + install silently if one is available.
+            let update_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_updater::UpdaterExt;
+                if let Ok(updater) = update_handle.updater() {
+                    if let Ok(Some(update)) = updater.check().await {
+                        let _ = update.download_and_install(|_, _| {}, || {}).await;
+                    }
+                }
+            });
+
             let open_item = MenuItem::with_id(app, "open",  "Open WinCTL",  true, None::<&str>)?;
             let show_item = MenuItem::with_id(app, "show",  "Show Window",  true, None::<&str>)?;
             let hide_item = MenuItem::with_id(app, "hide",  "Hide Window",  true, None::<&str>)?;

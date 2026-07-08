@@ -1,6 +1,6 @@
 {
   "productName": "WinCTL",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "identifier": "com.winctl.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -25,11 +25,20 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/icon.ico",
       "icons/icon-32.png",
       "icons/icon-128.png",
       "icons/icon-256.png"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Andrew-0807/winctl/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxRUM2QUQ3QzcxQTU4NkEKUldScVdCckgxMnJzWVNtd3FHMEh4UmpRRG1xUnpQZTR1a3RYUnhPTkk5bU9GeFhzcERrd055ejIK"
+    }
   }
 }
