@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WinCTL · Design Review</title>
+<style>
+  :root{
+    --bg:#0d0f14; --surface:#13161d; --surface2:#1a1e28; --border:#252a38; --border2:#2e3547;
+    --text:#e8ecf5; --text2:#8892a8; --text3:#7e88a5;
+    --green:#22d47a; --red:#f5524a; --yellow:#f0b429; --blue:#4d9de0; --accent:#3b82f6;
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:"Geist",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;
+    -webkit-font-smoothing:antialiased;padding:clamp(24px,5vw,72px) clamp(16px,5vw,48px);
+  }
+  body::before{
+    content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(60vw 60vw at 8% -12%, color-mix(in srgb,var(--accent) 16%,transparent),transparent 55%),
+      radial-gradient(50vw 50vw at 108% 4%, color-mix(in srgb,var(--blue) 14%,transparent),transparent 55%);
+  }
+  .wrap{max-width:880px;margin:0 auto}
+  header.hero{margin-bottom:56px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);display:flex;align-items:center;gap:10px}
+  .kicker::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+  h1{font-size:clamp(2rem,6vw,3.4rem);letter-spacing:-.035em;line-height:1.02;margin:14px 0 12px;text-wrap:balance}
+  .lede{color:var(--text2);font-size:clamp(1rem,2.5vw,1.15rem);max-width:62ch}
+  .verdict{
+    margin-top:28px;display:flex;flex-wrap:wrap;gap:14px;align-items:stretch;
+  }
+  .score{
+    display:flex;flex-direction:column;justify-content:center;padding:16px 22px;border-radius:12px;
+    background:color-mix(in srgb,var(--surface) 70%,transparent);border:1px solid var(--border2);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);min-width:120px;
+  }
+  .score b{font-family:var(--mono);font-size:2rem;letter-spacing:-.02em;line-height:1}
+  .score span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-top:6px}
+  .score .num-good{color:var(--green)} .score .num-mid{color:var(--yellow)} .score .num-hero{color:var(--accent)}
+
+  section{margin-top:56px}
+  h2{font-size:1.55rem;letter-spacing:-.02em;margin-bottom:6px;display:flex;align-items:baseline;gap:12px}
+  h2 .idx{font-family:var(--mono);font-size:.9rem;color:var(--text3);font-weight:400}
+  .sub{color:var(--text3);font-size:.95rem;margin-bottom:24px}
+
+  .find{border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--surface) 60%,transparent);padding:20px 22px;margin-bottom:14px;position:relative;overflow:hidden}
+  .find::after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);border-radius:12px}
+  .find h3{font-size:1.05rem;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .find p{color:var(--text2);font-size:.94rem;margin-top:8px;max-width:70ch}
+  .find p.fix{color:var(--text);margin-top:12px;font-size:.9rem;padding-top:12px;border-top:1px solid var(--border)}
+  .find p.fix::before{content:'FIX  ';font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--green)}
+  .find code{font-family:var(--mono);font-size:.85em;background:var(--bg);padding:2px 6px;border-radius:5px;color:var(--blue);border:1px solid var(--border)}
+
+  .tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .p0{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red);border:1px solid color-mix(in srgb,var(--red) 45%,transparent)}
+  .p1{background:color-mix(in srgb,var(--yellow) 15%,transparent);color:var(--yellow);border:1px solid color-mix(in srgb,var(--yellow) 40%,transparent)}
+  .p2{background:var(--surface2);color:var(--text3);border:1px solid var(--border2)}
+  .done{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green);border:1px solid color-mix(in srgb,var(--green) 40%,transparent)}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:600}
+  td{color:var(--text2);font-family:var(--mono);font-size:.85rem}
+  td.pass{color:var(--green)} td.warn{color:var(--yellow)} td.fail{color:var(--red)}
+  td:first-child{color:var(--text);font-family:var(--sans)}
+
+  .praise{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:8px}
+  .praise div{padding:14px 16px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--surface) 50%,transparent);font-size:.9rem;color:var(--text2)}
+  .praise b{color:var(--text);display:block;margin-bottom:4px;font-size:.95rem}
+
+  footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--border);color:var(--text3);font-size:.85rem;font-family:var(--mono)}
+  a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="kicker">WinCTL · Frontend Design Review</div>
+    <h1>An instrument panel, reviewed like one.</h1>
+    <p class="lede">Five lenses over the React dashboard: critique, audit, layout, responsive adaptation, and motion. The system is already high-craft — a deliberate soft-glass + neumorphism material layer with a WCAG-corrected text ramp. This report finds the seams, not slop.</p>
+    <div class="verdict">
+      <div class="score"><b class="num-hero">8.4</b><span>Overall / 10</span></div>
+      <div class="score"><b class="num-good">AA</b><span>Text contrast</span></div>
+      <div class="score"><b class="num-good">0</b><span>P0 open</span></div>
+      <div class="score"><b class="num-mid">1</b><span>P1 open</span></div>
+    </div>
+  </header>
+
+  <!-- CRITIQUE -->
+  <section>
+    <h2><span class="idx">01</span> Critique</h2>
+    <p class="sub">What's genuinely working, and where the design fights itself.</p>
+
+    <div class="praise">
+      <div><b>Signature LEDs</b> Status dots as recessed glass lenses in a neu socket — a real, memorable artifact that maps 1:1 to the product's core job.</div>
+      <div><b>Depth as hierarchy</b> Chrome vs. content separated by blur + shadow, not by color noise. Accent stays scarce.</div>
+      <div><b>Feedback discipline</b> Press scale, status ripple, loading spinners — every consequential action confirms itself.</div>
+      <div><b>Honest text ramp</b> Every body pair clears AA (5.1–15.3:1). The <code>--text3</code> fix note in the tokens shows this was measured, not guessed.</div>
+    </div>
+
+    <div class="find" style="margin-top:20px">
+      <h3><span class="tag done">FIXED</span> Glass was the default material, not a rare one</h3>
+      <p>Backdrop-blur was applied to header, sidebar, modal, context menu, FAB, toast, <em>and every service / system / folder card</em> — "glass everywhere" removed glass as a signal, since when the whole surface refracts nothing reads as floating above. Content cards are now opaque neu; glass is reserved for chrome/overlays, so it once again means "floating." (Also resolves the perf cost in Audit-A.)</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag p2">P2</span> Stopped ≠ lower opacity</h3>
+      <p>In list view, <code>.svc-card.stopped{opacity:.9}</code> plus <code>.svc-name{opacity:.65}</code> fades a whole card. The gallery view already solved this better — dot carries status, text stays full-opacity. Fading reduces the legibility of the exact rows an operator most needs to act on.</p>
+      <p class="fix">Adopt the gallery approach in list view: full-opacity text, state read from the LED and a neutral left edge.</p>
+    </div>
+  </section>
+
+  <!-- AUDIT -->
+  <section>
+    <h2><span class="idx">02</span> Audit</h2>
+    <p class="sub">Accessibility, performance, correctness. Contrast values computed against sRGB WCAG 2.1.</p>
+
+    <div class="find">
+      <h3><span class="tag done">FIXED</span> White button labels on <code>--accent</code> were 3.68:1</h3>
+      <p>Filled primary buttons (<code>.btn-new</code>, <code>.btn-save</code>, FAB, <code>.sidebar-btn.primary</code>) were white text at 13px medium on <code>#3b82f6</code> — 3.68:1, below the 4.5:1 needed for non-large text. Accent nudged to <code>#2f6fd6</code> (<b>4.81:1</b> with white, same hue); hardcoded glow rgbas retinted to match.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag done">FIXED</span> Reduced-motion left the stagger delay intact</h3>
+      <p>The <code>prefers-reduced-motion</code> block zeroed <code>animation-duration</code> but not <code>animation-delay</code>. Because <code>.svc-card</code> entrance uses <code>both</code> fill from <code>opacity:0</code>, a card at index 15 stayed invisible for ~750ms <em>even for users who asked for no motion</em>. Now zeroes <code>animation-delay</code> + <code>transition-delay</code>.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag done">FIXED</span> Audit-A · Backdrop-filter on every scrolling card</h3>
+      <p>Each content card (<code>.svc-card</code>, <code>.sys-card</code>, <code>.folder-card</code>) composited <code>blur(10px)</code> against the fixed ambient gradient — N live blur layers repainting during scroll, hover-transform, and the entrance stagger. All three now use an opaque <code>--neu-sheen</code> + <code>--surface</code> surface; the dual neu shadow keeps the soft-raised depth. Glass now reads only on true chrome/overlays.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag p2">P2</span> <code>z-index</code> scale breaks at the top end</h3>
+      <p>The scale is mostly semantic (header 100 → sidebar 150 → modal 200 → context 300) but toast jumps to <code>999</code>. Ordering is fine; the magic number is the smell.</p>
+      <p class="fix">Name the tiers as tokens (<code>--z-toast:400</code>) so the scale stays auditable.</p>
+    </div>
+
+    <table>
+      <tr><th>Contrast pair</th><th>Ratio</th><th>Verdict</th></tr>
+      <tr><td>Body text / surface</td><td>15.30:1</td><td class="pass">AA</td></tr>
+      <tr><td>Muted text3 / surface2</td><td>4.72:1</td><td class="pass">AA</td></tr>
+      <tr><td>Port link (blue) / surface</td><td>6.22:1</td><td class="pass">AA</td></tr>
+      <tr><td>Running badge / green-dim</td><td>5.20:1</td><td class="pass">AA</td></tr>
+      <tr><td>White label / accent</td><td>3.68:1</td><td class="fail">FAIL</td></tr>
+      <tr><td>Red badge / red-dim (11px)</td><td>4.38:1</td><td class="warn">Large-only</td></tr>
+    </table>
+  </section>
+
+  <!-- LAYOUT + ADAPT -->
+  <section>
+    <h2><span class="idx">03</span> Layout &amp; Adaptation</h2>
+    <p class="sub">Spacing rhythm, and behavior across the breakpoints (768 / 600 / 480).</p>
+
+    <div class="find">
+      <h3><span class="tag done">SOLID</span> Responsive coverage is thorough</h3>
+      <p>Off-canvas sidebar with backdrop, sysbar reflowing 4→2→2 cols, gallery grid 3→2→1, form/detail grids collapsing to single column, 44px touch targets on mobile controls per WCAG 2.5.5. This is well past the usual "add one media query" bar — no churn recommended here.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag p2">P2</span> Spacing scale is ad-hoc</h3>
+      <p>Paddings run 3/4/6/7/8/10/12/14/16/18/20/24px with no shared step. It reads fine, but there's no rhythm token, so every new component re-guesses. Not a bug — a maintainability tax.</p>
+      <p class="fix">Extract a 4px-based scale (<code>--space-1..8</code>) during your next <code>extract</code> pass. Don't retrofit existing rules wholesale.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag p2">P2</span> Header stats vanish on mobile</h3>
+      <p><code>.header-stats{display:none}</code> under 768px drops the running/stopped counts — the single most glanceable number in a monitoring tool — on the device most likely to be a quick glance.</p>
+      <p class="fix">Keep a condensed count chip (e.g. <code>3▲ / 1▼</code>) in the mobile header instead of hiding it entirely.</p>
+    </div>
+  </section>
+
+  <!-- ANIMATE -->
+  <section>
+    <h2><span class="idx">04</span> Motion</h2>
+    <p class="sub">Easing is disciplined (ease-out-expo, no bounce). Two structural issues, both addressed.</p>
+
+    <div class="find">
+      <h3><span class="tag done">FIXED</span> Unbounded entrance cascade</h3>
+      <p>The stagger <code>index*50ms</code> on an unbounded service list meant 30 services = a 1.5s cascade with the tail invisible via <code>both</code> fill. Now clamped with <code>min(index,8)</code> so the whole entrance completes in ≤400ms regardless of count.</p>
+    </div>
+
+    <div class="find">
+      <h3><span class="tag p2">P2</span> No shared entrance for the enclosing folders</h3>
+      <p>Folders and root cards animate independently; on first paint they can pop in slightly out of sync since folders have no stagger token. Minor — mentioned for completeness.</p>
+      <p class="fix">Give <code>.folder-card</code> the same capped stagger var, sequenced before its children.</p>
+    </div>
+  </section>
+
+  <footer>
+    Applied this pass: reduced-motion delay zeroing · capped card stagger · accent → #2f6fd6 (contrast) · opaque neu content cards (perf).<br>
+    Open backlog (P2): stopped-card opacity · z-index tokens · spacing scale · mobile header count · folder stagger.<br>
+    Generated for E:\Programming\dash\winctl tauri — WinCTL frontend.
+  </footer>
+
+</div>
+</body>
+</html>

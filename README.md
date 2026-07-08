@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="SolidJS/public/winctl-icon.png" alt="WinCTL" width="96" />
+<img src="public/winctl-icon.png" alt="WinCTL" width="96" />
 
 # WinCTL
 
@@ -39,7 +39,7 @@
 | 🔔 **System Tray** | Runs silently in the background with a tray icon |
 | ⌨️ **CLI** | Full command-line control via `winctl` commands |
 | 🔗 **Port Links** | Clickable links that open services directly in the browser |
-| 💾 **Persistent Config** | All services saved to `~\.winctl\services.json` |
+| 💾 **Persistent Config** | All services saved to `~\.config\winctl\services.json` |
 | 📊 **System Stats** | Live CPU, RAM, hostname, and uptime at a glance |
 | 💻 **System Info Popup** | Run fastfetch, neofetch, or winfetch from the sidebar — output rendered with full color in a popup |
 | 🚫 **No Docker / WSL** | Runs natively on Windows — just two `.exe` files |
@@ -85,7 +85,7 @@ This adds `winctl` to your PATH and optionally installs WinCTL as a Windows Serv
 winctl start
 ```
 
-Then open **<http://localhost:8080>** in any browser. From your phone or tablet on the same network use `http://<your-pc-ip>:8080`.
+Then open **<http://localhost:8888>** in any browser. From your phone or tablet on the same network use `http://<your-pc-ip>:8888`.
 
 > **Find your PC's IP:** run `ipconfig` in cmd and look for _IPv4 Address_.
 
@@ -120,7 +120,7 @@ All commands work from any terminal once `winctl init` has been run.
 
 ### Config files
 
-All configuration is stored in `%USERPROFILE%\.winctl\`:
+All configuration is stored in `%USERPROFILE%\.config\winctl\`:
 
 | File | Contents |
 |---|---|
@@ -143,7 +143,7 @@ All configuration is stored in `%USERPROFILE%\.winctl\`:
 
 ### Change the port
 
-Set the `WINCTL_PORT` environment variable before starting (default: `8080`):
+Set the `WINCTL_PORT` environment variable before starting (default: `8888`):
 
 ```bat
 set WINCTL_PORT=3500 && winctl start
@@ -154,7 +154,7 @@ set WINCTL_PORT=3500 && winctl start
 Run the following command **as Administrator** once:
 
 ```bat
-netsh advfirewall firewall add rule name="WinCTL" dir=in action=allow protocol=TCP localport=8080
+netsh advfirewall firewall add rule name="WinCTL" dir=in action=allow protocol=TCP localport=8888
 ```
 
 Or use the built-in shortcut: `winctl setup-firewall` (requires Admin).

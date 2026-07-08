@@ -3,7 +3,7 @@
 The application is failing to start a background Python script on Windows, producing the following error:
 `Starting: sudo python .\mainScripts\start.py Failed to start: spawn sudo python .\mainScripts\start.py ENOENT`
 
-This occurs because the process manager is attempting to execute a command that begins with `sudo`, which is a Unix-specific privilege elevation command and is not natively available on Windows (`win32` platform). The command is likely defined in the user's service configuration (`~/.winctl/services.json`) or a default configuration.
+This occurs because the process manager is attempting to execute a command that begins with `sudo`, which is a Unix-specific privilege elevation command and is not natively available on Windows (`win32` platform). The command is likely defined in the user's service configuration (`~/.config/winctl/services.json`) or a default configuration.
 
 ## Goals / Non-Goals
 
@@ -21,7 +21,7 @@ This occurs because the process manager is attempting to execute a command that 
 
 **1. Strip `sudo` prefix on Windows**
 *Rationale:* In `SolidJS/server/process-manager.ts`, when preparing the command for execution (e.g., in `startService`), we will check if the OS is Windows (`os.platform() === 'win32'`) and if the command starts with `sudo`. If so, we will strip `sudo` from the command prior to spawning. This makes the runner resilient against cross-platform command copying or incorrect default templates.
-*Alternative considered:* Modifying the user's `~/.winctl/services.json` directly. While valid, patching right at the runner level is more robust and acts as a safety net.
+*Alternative considered:* Modifying the user's `~/.config/winctl/services.json` directly. While valid, patching right at the runner level is more robust and acts as a safety net.
 
 ## Risks / Trade-offs
 

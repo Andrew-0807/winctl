@@ -1,0 +1,35 @@
+{
+  "productName": "WinCTL",
+  "version": "2.0.0",
+  "identifier": "com.winctl.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:8787",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ws://localhost:* http://localhost:* https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com"
+    },
+    "windows": [
+      {
+        "title": "WinCTL",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon-32.png",
+      "icons/icon-128.png",
+      "icons/icon-256.png"
+    ]
+  }
+}

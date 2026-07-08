@@ -1,27 +1,71 @@
+# Dependencies & Build Outputs
 node_modules/
 dist/
 dist-cli/
 dist-server/
+out/
+build/
+/src-tauri/target/
+/src-tauri/gen/
+
+# Executables & Compiled Binaries
 winctl.exe
 winctl-daemon.exe
 !release/*.exe
+
+# Databases & Secret Keys
 code_memory.db*
 .webui_secret_key
-test*.ahk
-test*.js
-backup/
-temp*
+.security-key
 
-# Hindsight memory banks (stored centrally at E:\Programming\Hindsight\banks\)
-banks/
+# IDEs & Code Editors
+.vscode/
+.idea/
+.opencode/
+.trae/
+.windsurf/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Auto Claude data directory
+# AI Agents & Tools (Claude, Gemini, Graphify, etc.)
+.agents/
+.claude/
+.gemini/
 .auto-claude/
-
-# Auto Claude generated files
 .auto-claude-security.json
 .auto-claude-status
 .claude_settings.json
+.graphify_python/
+.graphify_python
+graphify-out/
+autoresearch/
+.ruff_cache/
+banks/
+
+# Test, Scratch, Temporary Files
+test*.ahk
+test*.js
+test*.cjs
+test*.mjs
+backup/
+temp*
+/temp/
+/tmp/
+*.bak
+stderr.txt
+tmp_commit_msg.txt
 .worktrees/
-.security-key
 logs/security/
+*.log
+
+# Legacy Folders
+SolidJS/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+

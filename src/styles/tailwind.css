@@ -1,0 +1,36 @@
+/* Tailwind entry — v4 CSS-first config.
+   Utilities map to the runtime-theming CSS variables via `@theme inline`, so
+   `bg-surface`, `text-accent`, etc. still respond to live theme swaps
+   (~/.config/winctl/themes). The irreducible CSS (keyframes, pseudo-elements,
+   glass/neu primitives, complex selectors, media queries) lives in global.css. */
+@import 'tailwindcss';
+@import './global.css';
+
+@theme inline {
+  /* Colors — emitted as `var(--*)` (not resolved) so runtime themes win. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+  --color-green: var(--green);
+  --color-green-dim: var(--green-dim);
+  --color-red: var(--red);
+  --color-red-dim: var(--red-dim);
+  --color-yellow: var(--yellow);
+  --color-yellow-dim: var(--yellow-dim);
+  --color-blue: var(--blue);
+  --color-blue-dim: var(--blue-dim);
+  --color-accent: var(--accent);
+  --color-divider: var(--divider);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Motion — expose the strong ease-out as an easing token: `ease-brand`. */
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
+}

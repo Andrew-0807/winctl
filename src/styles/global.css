@@ -1,0 +1,3289 @@
+/* WinCTL Global Styles */
+@import './variables.css';
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    /* Without these, the staggered `animation-delay` survives and later list
+       items stay at their `opacity:0` keyframe for index*50ms — a card can be
+       invisible for ~1s even though the user asked for no motion. */
+    animation-delay: 0ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── New keyframes ── */
+@keyframes svc-card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ── Layout ── */
+.shell {
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  grid-template-columns: auto 1fr; /* aside width drives this column */
+}
+
+/* ── Header ── */
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  font-family: var(--font-sans);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-transform: uppercase;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.logo-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.header-stats {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  letter-spacing: 0.01em;
+}
+
+.stat-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dot-green {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.dot-red {
+  background: var(--red);
+}
+
+.dot-yellow {
+  background: var(--yellow);
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  color: var(--text2);
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.connection-status .dot {
+  width: 4px;
+  height: 4px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  margin-top: -2px;
+}
+
+.connection-status.connected {
+  background: var(--green-dim);
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.connection-status.connected .dot {
+  background: var(--green);
+}
+
+.connection-status.disconnected {
+  background: var(--surface2);
+  color: var(--text3);
+  border: 1px solid var(--border);
+}
+
+.connection-status.disconnected .dot {
+  background: var(--red);
+}
+
+.connection-status.connecting {
+  background: rgba(94, 114, 228, 0.2);
+  color: var(--accent);
+}
+
+.connection-status.connecting .dot {
+  background: var(--yellow);
+  animation: pulse 1s infinite;
+}
+
+.btn-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
+  box-shadow: 0 1px 3px rgba(47, 111, 214, 0.4);
+}
+
+.btn-new:hover {
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(47, 111, 214, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-new:active {
+  transform: scale(0.97);
+  opacity: 1;
+  box-shadow: none;
+}
+
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+}
+
+/* ── Sidebar ── */
+aside {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  width: 240px;      /* was 220 — matches grid column expectation */
+  overflow: hidden;  /* clip content during width transition */
+  transition: width 0.2s ease;
+}
+
+aside.collapsed {
+  width: 48px;
+}
+
+aside.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 0;
+}
+
+aside.collapsed .sidebar-label,
+aside.collapsed .nav-item>span:not(.nav-badge),
+aside.collapsed .nav-badge {
+  display: none;
+}
+
+aside.collapsed .nav-item {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+  font-size: 0;
+}
+
+aside.collapsed .sidebar-content {
+  overflow: visible;
+}
+
+/* .shell.sidebar-collapsed removed — aside width drives grid column via auto */
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.sidebar-collapse-btn svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+}
+
+aside.collapsed .sidebar-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+aside.collapsed .sidebar-header .sidebar-label {
+  display: none;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 0 16px;
+  margin-bottom: 8px;
+  margin-top: 16px;
+  font-family: var(--font-sans);
+}
+
+.sidebar-header .sidebar-label {
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-label:first-child {
+  margin-top: 0;
+}
+
+@keyframes sidebar-item-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.nav-item,
+.sidebar-label {
+  animation: sidebar-item-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--nav-index, 0) * 35ms) both;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: color var(--transition-base), border-color var(--transition-base), transform var(--transition-base), opacity var(--transition-base);
+  border-left: 2px solid transparent;
+  user-select: none;
+  font-family: var(--font-sans);
+  position: relative;
+}
+
+.nav-item > * {
+  position: relative;
+  z-index: 2;
+}
+
+.nav-item:hover {
+  color: var(--text);
+}
+
+.sidebar-hover-pill {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface2) 80%, transparent);
+  border-left: 2px solid var(--accent);
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:active {
+  transform: scale(0.98);
+  opacity: 0.85;
+}
+
+.nav-item.active {
+  background: var(--surface2);
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text3);
+}
+
+.nav-item i {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.fab-btn i {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
+}
+
+.fab-item i {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.ctx-item i {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2;
+}
+
+.folder-icon i {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+  color: var(--accent);
+}
+
+.folder-chevron i {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.5;
+}
+
+/* ── Main ── */
+main {
+  padding: 24px 24px 100px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── System bar ── */
+.sysbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 4px;
+}
+
+.sys-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: border-color 200ms ease;
+}
+
+.sys-card:hover {
+  border-color: var(--border2);
+}
+
+.sys-card-clickable {
+  cursor: pointer;
+  transition: border-color 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sys-card-clickable:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow-card);
+}
+
+.sys-card-clickable:active {
+  transition: box-shadow 100ms ease;
+}
+
+.sys-card-clickable.flushing {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.sys-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+
+.sys-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sys-sub {
+  font-size: 0.8125rem;
+  color: var(--text3);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-box::placeholder {
+  color: var(--text3);
+}
+
+.search-box:focus {
+  border-color: var(--accent);
+}
+
+.filter-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  font-family: var(--font-sans);
+}
+
+.filter-btn.active,
+.filter-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.filter-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Service cards ── */
+.services-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.svc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.svc-card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+
+.svc-card.running {
+  border-left: 3px solid var(--green);
+  box-shadow: -2px 0 12px rgba(34, 212, 122, 0.12);
+}
+
+.svc-card.stopped {
+  border-left: 3px solid var(--border);
+  opacity: 0.9;
+}
+
+.svc-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.svc-status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svc-status-dot::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+
+.status-running .svc-status-dot::before {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.status-stopped .svc-status-dot::before {
+  background: var(--text3);
+}
+
+.status-starting .svc-status-dot::before {
+  background: var(--accent);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.status-stopping .svc-status-dot::before {
+  background: #f0b429;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes statusRipple {
+  0% {
+    box-shadow: 0 0 0 0 var(--ripple-color, var(--green));
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.svc-card {
+  /* Cap the stagger: the service list is unbounded, so an uncapped
+     index*50ms cascade leaves the tail invisible for seconds on a long list.
+     min() clamps the whole entrance to ≤400ms regardless of count. */
+  animation: svc-card-enter 400ms cubic-bezier(0.16, 1, 0.3, 1) calc(min(var(--card-index, 0), 8) * 50ms) both;
+}
+
+.modal-content {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* Status-change ripple: color derives from the new state so a start pulses
+   green and a stop pulses neutral. Trigger class applied briefly in JS. */
+.status-running { --ripple-color: var(--green); }
+.status-stopped { --ripple-color: var(--text3); }
+.status-change .svc-status-dot::before {
+  animation: statusRipple 0.45s ease-out;
+}
+
+.svc-card.dragging .drag-handle {
+  cursor: grabbing;
+  color: var(--accent);
+}
+
+.svc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.svc-name {
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.2;
+}
+
+.svc-card.stopped .svc-name {
+  opacity: 0.65;
+}
+
+.svc-port {
+  font-size: 0.8125rem;
+  color: var(--blue);
+}
+
+.svc-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.svc-meta span {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-regular);
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.svc-meta span.highlight {
+  color: var(--blue);
+}
+
+.svc-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  transition: background-color var(--transition-base), color var(--transition-base), border-color var(--transition-base), transform var(--transition-base), opacity var(--transition-base);
+}
+
+.badge-running {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.badge-stopped {
+  background: var(--surface2);
+  color: var(--text3);
+  border: 1px solid var(--border);
+}
+
+.badge-starting {
+  background: rgba(94, 114, 228, 0.2);
+  color: var(--accent);
+}
+
+.badge-stopping {
+  background: rgba(240, 180, 41, 0.2);
+  color: #f0b429;
+}
+
+.startup-error-icon {
+  display: flex;
+  align-items: center;
+  color: #f0b429;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 4px;
+  opacity: 0.85;
+  transition: opacity var(--transition-base);
+}
+.startup-error-icon:hover { opacity: 1; }
+
+/* Instant, styled hover tooltip so the failure reason is actually readable
+   (native title tooltips are slow/flaky in the webview). */
+.startup-error-icon { position: relative; }
+.startup-error-icon::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: max-content;
+  max-width: 320px;
+  white-space: pre-wrap;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #1a1a1f;
+  border: 1px solid rgba(240, 180, 41, 0.35);
+  color: var(--text1, #eaeaea);
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.startup-error-icon:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.supervised-badge {
+  display: flex;
+  align-items: center;
+  color: var(--text3);
+  flex-shrink: 0;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.svc-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ctrl-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  position: relative;
+}
+
+.ctrl-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+.ctrl-btn:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border2);
+  transform: translateY(-1px);
+}
+
+.ctrl-btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* All control buttons share the edit button's clean neutral lift on hover
+   (surface2 + border2 + neu-raised), instead of start/stop flooding green/red.
+   The icon still carries the action's meaning. */
+.ctrl-btn.start:hover,
+.ctrl-btn.stop:hover,
+.ctrl-btn.edit:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ctrl-btn.loading {
+  pointer-events: none;
+}
+
+.ctrl-btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spinner 0.6s linear infinite;
+}
+
+.ctrl-btn.loading svg,
+.ctrl-btn.loading span {
+  visibility: hidden;
+}
+
+/* ── Expandable panel ── */
+/* Height/opacity animated by Framer Motion (AnimatePresence). No max-height:
+   it would clip panels taller than its value. */
+.svc-panel {
+  border-top: 1px solid var(--divider);
+  overflow: hidden;
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--divider);
+  padding: 0 16px;
+  gap: 0;
+}
+
+.panel-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  font-family: var(--font-sans);
+}
+
+.panel-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.panel-body {
+  padding: 16px;
+  font-family: var(--font-mono);
+}
+
+pre, code {
+  font-family: var(--font-mono);
+}
+
+.log-line {
+  font-family: var(--font-mono);
+}
+
+/* ── Log terminal ── */
+.log-terminal {
+  background: #0a0c11;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  height: 200px;
+  overflow-y: auto;
+  color: var(--text2);
+}
+
+@keyframes log-line-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.log-line {
+  padding: 1px 0;
+  animation: log-line-enter 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.log-line .time {
+  color: var(--text3);
+}
+
+.log-line.err {
+  color: var(--red);
+}
+
+.log-line.sys {
+  color: var(--yellow);
+}
+
+.log-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.log-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.log-btn:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.log-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.log-btn.copied {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.theme-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.theme-select:hover {
+  border-color: var(--border2);
+}
+
+.theme-select:focus {
+  border-color: var(--accent);
+}
+
+.theme-select option {
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px;
+}
+
+.theme-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.theme-color-input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.theme-color-input label {
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: capitalize;
+}
+
+.theme-color-input input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.svc-meta .warn {
+  color: var(--yellow);
+  font-weight: 600;
+}
+
+.log-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* ── Details grid ── */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.detail-item label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.detail-item .val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface2);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  word-break: break-all;
+}
+
+/* ── Modal ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(10px) scale(0.99);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-backdrop.open .modal {
+  transform: translateY(0) scale(1);
+}
+
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--divider);
+  font-family: var(--font-sans);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  transition: color 0.12s;
+}
+
+.modal-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modal-close:hover {
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── Gallery folder overlay: side-by-side folder panel + log panel ── */
+.gallery-folder-overlay {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: min(90vw, 1400px);
+  max-width: 100vw;
+  overflow: hidden;
+  min-height: 50vh;
+  max-height: 85vh;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  gap: 0;
+}
+
+/* Left: folder content panel */
+.gallery-folder-panel {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px 0 0 10px;
+  flex: 1;
+  min-width: 0;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When there is no log panel, make the folder panel standalone with radius on all sides */
+.gallery-folder-overlay:not(.show-log) .gallery-folder-panel {
+  border-radius: 10px;
+}
+
+/* Right: log panel (shown when .show-log is on the overlay) */
+.gallery-log-panel {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  width: 340px;
+  min-width: 280px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  animation: logPanelSlideIn 0.18s ease;
+}
+
+@keyframes logPanelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.gallery-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.gallery-log-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gallery-log-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.gallery-log-body .log-viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.gallery-log-body .log-terminal {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group.full {
+  grid-column: 1 / -1;
+}
+
+/* Grouped sections inside the service modal: rhythm + separation so fields
+   don't read as one undifferentiated stack. */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-section + .form-section {
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+}
+
+.form-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text3);
+  margin: 0 0 -2px;
+}
+
+/* Name is the field that matters; the port is 4 digits. */
+.form-row-np {
+  grid-template-columns: 1fr 130px;
+}
+
+/* Revealed sub-field (e.g. start delay) reads as a child of its toggle. */
+.form-subfield {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+}
+
+.form-input,
+.form-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.form-input::placeholder {
+  color: var(--text3);
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--accent);
+}
+
+.form-select {
+  cursor: pointer;
+}
+
+.form-input.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.toggle-label {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.toggle-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.toggle {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease;
+  flex-shrink: 0;
+}
+
+.toggle:active::after {
+  width: 20px;
+}
+
+.toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: left 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.15s ease;
+}
+
+.toggle.on::after {
+  left: 20px;
+}
+
+.toggle.on:active::after {
+  left: 16px;
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--divider);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.btn-delete {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-delete:hover {
+  background: var(--red-dim);
+}
+
+.btn-delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modal-footer-right {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.btn-cancel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-cancel:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+/* Confirm button: same shape + animation as .btn-cancel, red shades instead of black/white.
+   --tone drives it: dark smudge fill, muted lighter-red border. */
+.btn-confirm {
+  --tone: var(--red);
+  background: color-mix(in srgb, var(--tone) 20%, black);
+  border: 1px solid color-mix(in srgb, var(--tone) 50%, black);
+  color: color-mix(in srgb, var(--tone) 30%, white);
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-confirm:hover {
+  background: color-mix(in srgb, var(--tone) 28%, black);
+  border-color: color-mix(in srgb, var(--tone) 65%, black);
+  color: white;
+}
+
+.btn-save {
+  background: var(--accent);
+  border: none;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 150ms ease, transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
+  box-shadow: 0 1px 3px rgba(47, 111, 214, 0.4);
+}
+
+.btn-save:hover {
+  opacity: 0.9;
+  box-shadow: 0 4px 12px rgba(47, 111, 214, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-save:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+/* ── Port link ── */
+.port-link {
+  color: var(--blue);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.port-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text3);
+  font-family: var(--font-sans);
+}
+
+.empty-state h3 {
+  font-size: 16px;
+  color: var(--text2);
+  margin-bottom: 6px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.empty-state p {
+  font-size: 13px;
+  color: var(--text3);
+  line-height: 1.6;
+}
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--text);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255,255,255,0.04) inset;
+  animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1), toastOut 0.2s ease 2.8s forwards;
+  max-width: 320px;
+  backdrop-filter: blur(8px);
+}
+
+.toast-item.success {
+  border-left: 3px solid var(--green);
+  background: color-mix(in srgb, var(--surface2) 92%, var(--green) 8%);
+}
+
+.toast-item.error {
+  border-left: 3px solid var(--red);
+  background: color-mix(in srgb, var(--surface2) 92%, var(--red) 8%);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── FAB (Floating Action Button) ── */
+.fab-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+}
+
+.fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(94, 114, 228, 0.4);
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  z-index: 51;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fab-btn:hover {
+    transform: scale(1.05);
+  }
+}
+
+.fab-btn:active {
+  transform: scale(0.95);
+}
+
+.fab-btn.open {
+  transform: rotate(45deg);
+}
+
+.fab-btn.open:active {
+  transform: rotate(45deg) scale(0.95);
+}
+
+.fab-btn::after {
+  content: 'Add';
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.fab-btn:hover::after {
+  opacity: 1;
+}
+
+.fab-btn.open::after {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fab-menu.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.fab-item:hover {
+  background: var(--surface2);
+  border-color: var(--border2);
+}
+
+.fab-item span:first-child {
+  font-size: 14px;
+}
+
+.fab-item span:last-child {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* ── Folder cards ── */
+.folder-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0; /* spacing handled by .services-grid gap */
+  overflow: hidden;
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  background: color-mix(in srgb, var(--surface2) 40%, transparent);
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  position: relative;
+}
+
+.folder-header:hover {
+  background: color-mix(in srgb, var(--surface2) 65%, transparent);
+}
+
+.folder-chevron {
+  color: var(--text3);
+  transition: transform 0.2s;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.folder-card.expanded .folder-chevron {
+  transform: rotate(90deg);
+}
+
+.folder-icon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.folder-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.folder-count {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 10px;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.folder-count.hidden {
+  display: none;
+}
+
+.folder-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 1;
+  transition: opacity 0.15s;
+  margin-right: auto;
+  margin-left: 8px;
+}
+
+.folder-header:hover .folder-actions {
+  opacity: 1;
+}
+
+.folder-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  border: none;
+  background: var(--surface);
+  color: var(--text3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.folder-action-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.folder-action-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .folder-action-btn:hover {
+    transform: scale(1.05);
+  }
+}
+
+.folder-action-btn:active {
+  transform: scale(0.95);
+}
+
+.folder-action-btn.start:hover {
+  color: var(--green);
+  background: var(--green-dim);
+}
+
+.folder-action-btn.stop:hover {
+  color: var(--red);
+  background: var(--red-dim);
+}
+
+.folder-action-btn.edit:hover {
+  color: var(--blue);
+}
+
+.folder-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease-out, padding 0.25s ease-out;
+  padding: 0 8px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.folder-card.expanded .folder-body {
+  grid-template-rows: 1fr;
+  padding: 8px;
+}
+
+.folder-body-inner {
+  overflow: hidden;
+  /* Flex gap gives every card even breathing room. Margin on .svc-card
+     collapsed through the .svc-wrapper flex item and let the soft neu shadows
+     of adjacent cards bleed together, reading as overlapping borders. */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.folder-card.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* Spacing now comes from .folder-body-inner's flex gap, not per-card margin. */
+.folder-body .svc-card {
+  margin-bottom: 0;
+}
+
+.drop-zone .svc-wrapper {
+  margin-bottom: 10px;
+}
+
+.drop-zone .svc-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Gallery View ── */
+.services-grid.view-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+/* Root drop zone spans full width, creates sub-grid */
+.services-grid.view-gallery>.drop-zone {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 0;
+  border-color: transparent;
+  /* hide border when empty unless drag over */
+}
+
+.services-grid.view-gallery>.drop-zone .svc-wrapper {
+  margin-bottom: 0;
+}
+
+/* Folder Card inside gallery */
+.services-grid.view-gallery .folder-card {
+  grid-column: span 1;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 120px;
+}
+
+/* When expanded, span full width */
+.services-grid.view-gallery .folder-card.expanded {
+  grid-column: 1 / -1;
+  min-height: auto;
+}
+
+/* Folder Header styling when not expanded (Square Card look) */
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-header {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-chevron {
+  display: none;
+  /* hide chevron in card mode */
+}
+
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-icon svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+}
+
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-name {
+  flex: none;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-count {
+  position: static;
+  transform: none;
+  margin-bottom: 16px;
+}
+
+.services-grid.view-gallery .folder-card:not(.expanded) .folder-actions {
+  margin: 0 auto;
+}
+
+/* Folder Body (Expanded Grid) */
+.services-grid.view-gallery .folder-body-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.services-grid.view-gallery .folder-body .svc-card {
+  margin-bottom: 0;
+}
+
+.services-grid.view-gallery .folder-body .svc-wrapper {
+  margin-bottom: 0;
+}
+
+/* Normalize service cards in gallery to ignore varying PID/uptime lengths */
+.services-grid.view-gallery .svc-card {
+  height: 100%;
+}
+
+.services-grid.view-gallery .svc-card .svc-header {
+  height: auto;
+  align-items: center;
+}
+
+.services-grid.view-gallery .svc-card .svc-meta {
+  display: none;
+  /* Hide changing PIDs/uptime to ensure stable height */
+}
+
+.services-grid.view-gallery .svc-card .svc-badge {
+  display: none;
+}
+
+/* Gallery: hide drag handle to reclaim space */
+.services-grid.view-gallery .svc-card .drag-handle {
+  display: none;
+}
+
+/* Gallery: status dot — container + visible pip both sized intentionally */
+.services-grid.view-gallery .svc-card .svc-status-dot {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.services-grid.view-gallery .svc-card .svc-status-dot::before {
+  width: 10px;
+  height: 10px;
+}
+
+/* Running glow expands with the larger pip */
+.services-grid.view-gallery .svc-card .status-running .svc-status-dot::before {
+  box-shadow: 0 0 10px 2px var(--green);
+}
+
+/* Gallery: header — single-row flex, vertically centered, comfortable touch target */
+.services-grid.view-gallery .svc-card .svc-header {
+  height: auto;
+  gap: 10px;
+  padding: 14px 16px;
+  min-height: 60px;
+}
+
+/* Gallery: svc-info should center its single line of text vertically */
+.services-grid.view-gallery .svc-card .svc-info {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Gallery: service name — readable weight, slightly tighter tracking, full truncation */
+.services-grid.view-gallery .svc-card .svc-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Restore full opacity regardless of stopped state — dot carries status */
+  opacity: 1 !important;
+}
+
+/* Gallery: compact control buttons — 44px minimum for reliable touch target per WCAG 2.5.5 */
+.services-grid.view-gallery .svc-card .ctrl-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 5px;
+}
+
+.services-grid.view-gallery .svc-card .ctrl-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.services-grid.view-gallery .svc-card .svc-controls {
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Gallery: stopped cards — communicate via dot opacity, not full-card fade */
+.services-grid.view-gallery .svc-card.stopped {
+  opacity: 1;
+  border-left-color: var(--border);
+}
+
+.services-grid.view-gallery .svc-card.stopped .svc-status-dot::before {
+  background: var(--text3);
+  box-shadow: none;
+}
+
+/* Gallery: hover lift — card feels physical */
+.services-grid.view-gallery .svc-card .svc-header:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* Gallery: responsive grid — 2 cols on tablet, 1 col on mobile */
+@media (max-width: 600px) {
+  .services-grid.view-gallery {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .services-grid.view-gallery > .drop-zone {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .services-grid.view-gallery .folder-body-inner {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .services-grid.view-gallery .svc-card .svc-header {
+    padding: 12px 14px;
+    min-height: 52px;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .services-grid.view-gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .services-grid.view-gallery > .drop-zone {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .services-grid.view-gallery .folder-body-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.svc-card.dragging {
+  opacity: 0.4;
+  border-style: dashed;
+  transform: scale(0.98);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text3);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.svc-header:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Folder drag handle — reveals on folder-header hover, same as service cards. */
+.folder-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--text3);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.folder-header:hover .folder-drag-handle {
+  opacity: 1;
+}
+
+.folder-drag-handle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.folder-drag-handle:active {
+  cursor: grabbing;
+}
+
+.folder-card.dragging {
+  z-index: 100;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* solid-dnd sortable states */
+.svc-wrapper.sortable-active {
+  cursor: grabbing;
+}
+
+.svc-wrapper.sortable-dragging {
+  opacity: 0.6;
+  transform: scale(1.02);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.svc-wrapper.sortable-dragging .svc-card {
+  background: var(--surface);
+}
+
+
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Floating drag preview rendered by DragOverlay — follows the cursor. */
+.drag-overlay-card {
+  cursor: grabbing;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  opacity: 0.95;
+}
+
+.drag-overlay-card.folder-card {
+  border: 1px solid var(--accent);
+}
+
+.drop-zone-hint {
+  display: block;
+  padding: 20px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+  min-height: 60px;
+}
+
+.drop-zone {
+  min-height: 40px;
+  border: 2px dashed transparent;
+  border-radius: 6px;
+  transition: border-color 0.25s cubic-bezier(0.2, 0, 0, 1), background-color 0.25s cubic-bezier(0.2, 0, 0, 1);
+  margin-top: 0; /* spacing handled by .services-grid gap */
+}
+
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ── Context menu ── */
+.context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 300;
+  min-width: 160px;
+  padding: 4px 0;
+  transform-origin: top left;
+  opacity: 0;
+  transform: scale(0.96);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.context-menu.open {
+  opacity: 1;
+  transform: scale(1);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ctx-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.ctx-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.ctx-item.danger:hover {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+.ctx-divider {
+  height: 1px;
+  background: var(--divider);
+  margin: 4px 0;
+}
+
+/* ── Sidebar actions ── */
+.sidebar-actions {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.sidebar-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+  margin-bottom: 8px;
+}
+
+.sidebar-btn:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-btn:hover {
+  border-color: var(--border2);
+  background: var(--surface);
+}
+
+.sidebar-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.sidebar-btn.primary:hover {
+  opacity: 0.85;
+}
+
+/* ── Sidebar settings ── */
+.sidebar-section {
+  padding: 12px 16px;
+  border-top: 1px solid var(--divider);
+  margin-top: 8px;
+}
+
+.sidebar-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.sidebar-settings-row {
+  display: flex;
+  gap: 6px;
+}
+
+.sidebar-opt {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text2);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+}
+
+.sidebar-opt:hover {
+  border-color: var(--border2);
+}
+
+.sidebar-opt.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ── Folder badge on service ── */
+.folder-badge {
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+/* ── System Info Modal ── */
+.sysinfo-output {
+  font-family: var(--font-mono, monospace);
+  white-space: pre;
+  overflow: auto;
+  max-height: 65vh;
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sysinfo-status {
+  color: var(--text2);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.sysinfo-error {
+  color: var(--red);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.sysinfo-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sysinfo-tool-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.sysinfo-tool-option input[type="radio"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Sidebar backdrop for mobile ── */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 140;
+    opacity: 0;
+    animation: fadeIn 0.2s forwards;
+  }
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.mobile-settings-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.mobile-settings-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1fr;
+  }
+
+  aside {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+
+  aside.open {
+    transform: translateX(0);
+  }
+
+  /* Make sidebar-header adjust for full height aside */
+  .sidebar-header {
+    height: 56px;
+    justify-content: flex-end; /* since collapse is hidden */
+  }
+
+  .menu-toggle {
+    display: flex;
+  }
+
+  .sidebar-collapse-btn {
+    display: none;
+  }
+
+  .nav-item {
+    font-size: 15px;
+    justify-content: flex-start;
+    padding: 12px 20px;
+  }
+
+  .sidebar-label {
+    font-size: 11px;
+    text-align: left;
+    padding-left: 12px;
+  }
+
+  .sysbar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-stats {
+    display: none;
+  }
+
+  .mobile-settings-btn {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  main {
+    padding: 14px 14px 100px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  aside {
+    width: 80%; /* Don't take full width so they can see backdrop */
+    max-width: 320px;
+  }
+
+  .sysbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-box {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .svc-controls .ctrl-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 0;
+  }
+
+  .svc-controls .ctrl-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .svc-header {
+    padding: 10px 12px;
+  }
+
+  .btn-cancel,
+  .btn-save {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .btn-delete {
+    flex: 1;
+    background: var(--red);
+    color: white;
+    border-color: var(--red);
+  }
+
+  .modal-footer {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .modal-footer-right {
+    flex: 1;
+  }
+
+  .modal-footer-right .btn-cancel {
+    display: none;
+  }
+
+  .modal-footer-right .btn-save {
+    flex: 1;
+  }
+}
+
+/* ── Run Command Panel ── */
+.run-command-panel {
+  margin-top: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: var(--neu-raised-sm), var(--glass-highlight);
+  overflow: hidden;
+}
+
+.run-command-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  background: color-mix(in srgb, var(--surface2) 40%, transparent);
+}
+
+.run-command-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  align-items: center;
+}
+
+.run-command-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.run-command-input:focus {
+  border-color: var(--accent);
+}
+
+.run-command-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.run-command-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 0.12s;
+  white-space: nowrap;
+}
+
+.run-command-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn-danger {
+  background: var(--red);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.run-command-output {
+  margin: 0 12px 12px;
+  height: 220px;
+}
+
+.exec-exit {
+  padding-top: 4px;
+  border-top: 1px solid var(--divider);
+}
+
+.exec-exit-ok {
+  color: var(--green);
+}
+
+.exec-exit-err {
+  color: var(--red);
+}
+
+/* ── Scrollbar Styling — themed, floating, accent-on-hover ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thumb floats inside its own track via a transparent border box; the
+   background paints only the padding-box, so it reads as a rounded pill
+   with breathing room on both sides. */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--border2), var(--border2)) padding-box,
+    linear-gradient(150deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)) padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  transition: background var(--transition-base);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(150deg,
+      color-mix(in srgb, var(--accent) 55%, var(--text3)),
+      var(--accent)) padding-box;
+  box-shadow: 0 0 8px -1px var(--accent-glow);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent) padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ── Focus rings (accessibility) ── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--accent-glow);
+  color: var(--text);
+}
+
+/* ── Folder card polish ── */
+.folder-card {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.folder-header {
+  transition: background 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Context menu polish ── */
+.context-menu {
+  border-radius: 10px;
+  padding: 6px 0;
+}
+
+.ctx-item {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  border-radius: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+/* ── Form focus ── */
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.search-box:focus {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ── Sidebar nav polish ── */
+.nav-item.active {
+  background: color-mix(in srgb, var(--surface2) 80%, var(--accent) 20%);
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+
+/* ── Badge refinement ── */
+.badge-starting {
+  background: color-mix(in srgb, transparent 100%, var(--accent) 0%);
+  background: rgba(47, 111, 214, 0.18);
+  color: var(--accent);
+}
+
+/* ── Svc header ── */
+.svc-header {
+  transition: background 200ms ease;
+}
+
+.svc-header:hover {
+  background: color-mix(in srgb, var(--surface) 85%, var(--border2) 15%);
+}
+
+/* ── Utility Classes ── */
+.hidden {
+  display: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   NEOMORPHISM + GLASSMORPHISM LAYER
+   Glass = floating chrome/overlays · Neu = pressable controls & content cards.
+   Theme-safe: all effects derive from existing CSS vars. Delete this whole
+   block to revert to the flat design.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Ambient background: gives the glass something to refract ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(65vw 65vw at 10% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+    radial-gradient(55vw 55vw at 105% 0%, color-mix(in srgb, var(--blue) 20%, transparent), transparent 55%),
+    radial-gradient(60vw 60vw at 88% 112%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 55%);
+  filter: saturate(1.15);
+}
+
+/* ── Glass: floating chrome ── */
+header {
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+aside {
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+}
+
+.modal {
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-modal);
+}
+
+.context-menu,
+.fab-item,
+.fab-btn::after {
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.toast-item {
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.gallery-folder-panel,
+.gallery-log-panel {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-color: var(--glass-border);
+}
+
+/* ── CONTENT CARDS = opaque soft-raised neu (no per-card backdrop-filter) ────
+   Depth is carried by the dual neu shadow alone. Dropping the blur removes N
+   live compositing layers from the scrolling list (perf), and reserves glass
+   for true chrome/overlays (header, sidebar, modals, toasts) where "floating"
+   is meaningful. Sheen keeps the lit-from-top-left material consistent. */
+.svc-card {
+  background: var(--neu-sheen), var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--neu-raised), var(--glass-highlight);
+}
+
+.svc-card:hover {
+  border-color: var(--glass-border);
+  box-shadow: var(--neu-lift), var(--glass-highlight);
+}
+
+.svc-card.running {
+  box-shadow: var(--neu-raised), var(--glass-highlight), inset 3px 0 0 var(--green);
+  border-left: none;
+}
+
+.svc-card.stopped {
+  border-left: none;
+}
+
+.sys-card {
+  background: var(--neu-sheen), var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--neu-raised-sm), var(--glass-highlight);
+  transition: border-color 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sys-card:hover {
+  border-color: var(--glass-border);
+}
+
+.sys-card-clickable {
+  transition: border-color 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sys-card-clickable:hover {
+  box-shadow: var(--neu-lift), var(--glass-highlight), var(--accent-bloom);
+}
+
+.sys-card-clickable:active {
+  box-shadow: var(--neu-inset);
+  transition: box-shadow 100ms ease;
+}
+
+.folder-card {
+  background: var(--neu-sheen), var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--neu-raised-sm), var(--glass-highlight);
+}
+
+/* ── Neumorphism: pressable controls ── */
+.ctrl-btn,
+.filter-btn,
+.sidebar-btn,
+.log-btn,
+.folder-action-btn,
+.sidebar-collapse-btn,
+.sidebar-opt {
+  border-color: transparent;
+  box-shadow: var(--neu-raised-sm);
+}
+
+.ctrl-btn:hover,
+.filter-btn:hover,
+.sidebar-btn:hover,
+.log-btn:hover,
+.folder-action-btn:hover,
+.sidebar-collapse-btn:hover {
+  border-color: transparent;
+  box-shadow: var(--neu-raised);
+}
+
+.ctrl-btn:active,
+.filter-btn:active,
+.sidebar-btn:active,
+.log-btn:active,
+.folder-action-btn:active,
+.sidebar-opt.active,
+.filter-btn.active {
+  box-shadow: var(--neu-inset);
+  transform: translateY(0) scale(0.99);
+}
+
+/* Raised primary actions keep the accent glow, lifted */
+.btn-new,
+.btn-save,
+.fab-btn {
+  box-shadow: var(--neu-raised-sm), 0 2px 10px var(--accent-glow);
+}
+
+.btn-new:active,
+.btn-save:active {
+  box-shadow: var(--neu-inset);
+}
+
+/* ── Neumorphism: inputs read as pressed-in wells ── */
+.search-box,
+.form-input,
+.form-select,
+.theme-select,
+.run-command-input,
+.detail-item .val {
+  border-color: transparent;
+  box-shadow: var(--neu-inset);
+}
+
+.search-box:focus,
+.form-input:focus,
+.form-select:focus,
+.theme-select:focus,
+.run-command-input:focus {
+  border-color: transparent;
+  box-shadow: var(--neu-inset), 0 0 0 2px var(--accent-glow);
+}
+
+/* Toggle track as a neumorphic well; knob lifted */
+.toggle {
+  border-color: transparent;
+  box-shadow: var(--neu-inset);
+}
+
+.toggle::after {
+  box-shadow: var(--neu-raised-sm);
+}
+
+/* Log terminal recessed into the card */
+.log-terminal,
+.sysinfo-output {
+  border-color: transparent;
+  box-shadow: var(--neu-inset-deep);
+}
+
+/* Header chips: small glass pills */
+.stat-chip,
+.connection-status {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-highlight);
+}
+
+/* ── SIGNATURE: status dots as recessed panel LEDs ──────────────────────────
+   The one memorable element. Glass lens (domed radial highlight) seated in a
+   neu socket (inset well), lit from within — the artifact a supervisor exists
+   for. Glow color derives from theme status vars, so it stays theme-safe. */
+.svc-status-dot {
+  background: var(--surface);
+  box-shadow: var(--neu-inset);
+}
+
+.status-running .svc-status-dot::before {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--green) 45%, white), var(--green) 64%);
+  box-shadow: 0 0 7px 1px color-mix(in srgb, var(--green) 65%, transparent);
+}
+
+.status-stopped .svc-status-dot::before {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--text3) 55%, white), var(--text3) 72%);
+  box-shadow: none;
+}
+
+.status-starting .svc-status-dot::before {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--accent) 35%, white), var(--accent) 64%);
+  box-shadow: 0 0 7px 1px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.status-stopping .svc-status-dot::before {
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--yellow) 40%, white), var(--yellow) 64%);
+  box-shadow: 0 0 7px 1px color-mix(in srgb, var(--yellow) 60%, transparent);
+}
+
+/* ── Icon badge: replaces the status LED when a service has a custom icon ─────
+   Same recessed neu socket as the dot. "Lit" = a status-colored glow ring, so
+   even an uploaded picture icon reads running/stopped at a glance. Lucide icons
+   also take the status color (passed as `color`); pictures desaturate when off. */
+.svc-icon-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface2);
+  box-shadow: var(--neu-inset);
+  transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, filter 0.25s ease;
+}
+
+.svc-icon-badge img {
+  border-radius: 5px;
+}
+
+.svc-icon-badge.status-running {
+  box-shadow: var(--neu-inset),
+    0 0 0 1px color-mix(in srgb, var(--green) 60%, transparent),
+    0 0 12px 1px color-mix(in srgb, var(--green) 45%, transparent);
+}
+
+.svc-icon-badge.status-starting {
+  box-shadow: var(--neu-inset),
+    0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent),
+    0 0 12px 1px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.svc-icon-badge.status-stopping {
+  box-shadow: var(--neu-inset),
+    0 0 0 1px color-mix(in srgb, var(--yellow) 55%, transparent),
+    0 0 12px 1px color-mix(in srgb, var(--yellow) 45%, transparent);
+}
+
+/* Off: no glow, picture icons desaturate so "stopped" reads instantly. */
+.svc-icon-badge.status-stopped {
+  opacity: 0.85;
+}
+
+.svc-icon-badge.status-stopped img {
+  filter: grayscale(0.85) brightness(0.8);
+}
+
+/* Status settle: brief scale pulse, mirrors the LED ripple. */
+.svc-icon-badge.status-change {
+  animation: iconBadgePulse 0.45s ease-out;
+}
+
+@keyframes iconBadgePulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Fallback for browsers without backdrop-filter: fall back to opaque surface */
+@supports not (backdrop-filter: blur(1px)) {
+  header, aside, .modal, .context-menu, .fab-item,
+  .toast-item, .gallery-folder-panel, .gallery-log-panel,
+  .svc-card, .sys-card, .folder-card {
+    background: var(--surface);
+  }
+}

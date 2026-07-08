@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/refs/heads/v2/crates/tauri-utils/schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for WinCTL",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-unlisten",
+    "shell:allow-open",
+    "core:window:default",
+    "core:app:default",
+    "core:tray:default",
+    "core:menu:default"
+  ]
+}

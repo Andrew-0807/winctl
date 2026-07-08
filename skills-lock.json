@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "awwwards-animations": {
+      "source": "devmartinese/awwwards-animations-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "756ae9d3de844d8a88aa85257a35bb16e6f9cf7a43ffa9eeb8b9b6788bdd1f4b"
+    },
     "ckm:banner-design": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",

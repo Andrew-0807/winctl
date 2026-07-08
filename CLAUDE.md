@@ -1,107 +1,44 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project overview
-
-WinCTL is a self-hosted Windows process/service manager with a web dashboard. It has three parts:
-- **Daemon** (`SolidJS/server/`) — Express + Socket.IO server that spawns and tracks child processes
-- **UI** (`SolidJS/src/`) — SolidJS SPA served by the daemon
-- **CLI** (`cli/index.ts`) — thin HTTP client that talks to the daemon
-
-All development work happens inside the `SolidJS/` directory.
+WinCTL — Windows process/service manager with a web dashboard.
+- **Backend** (`src-tauri/src/`) — Rust: Axum HTTP + WebSocket server, embedded in a Tauri app (tray + webview). Spawns/supervises child processes.
+- **Frontend** (`src/`) — React SPA, Zustand + Framer Motion, Vite.
+- **CLI** — the same Rust binary; subcommands dispatched in `lib.rs::run()`.
 
 ## Commands
-
-All commands run from `SolidJS/`:
-
-```bash
-# Development (hot-reloading client + server)
-npm run dev
-
-# Build everything (client + server + CLI)
-npm run build
-
-# Individual builds
-npm run build:client    # Vite → dist/
-npm run build:server    # tsc → dist-server/
-npm run build:cli       # tsc → dist-cli/
-
-# Package to Windows executables (requires pkg, runs build first)
-npm run package         # produces winctl-daemon.exe + winctl.exe in repo root
+```
+npm run dev              # Vite dev server (frontend)
+npm run tauri dev        # full app (Rust backend + webview)
+cd src-tauri && cargo check    # type-check backend
+npx tsc --noEmit         # type-check frontend
+npm run tauri build      # release bundle
 ```
 
-## Architecture
+## Key architecture
+- `AppState` (`lib.rs`) is the live source of truth: `services`/`settings` in `Arc<RwLock>`, broadcast over Socket via `tx.send("update")`.
+- The broadcast string `"update"` triggers a full status snapshot to WS clients + the Tauri webview (`broadcast_listener`); any other payload (e.g. `exec-output`, `exec-done`) is forwarded verbatim.
+- Port: `settings.port` (default `8888`), overridable via `WINCTL_PORT`.
+- Config: `~/.config/winctl/` (`services.json`, `settings.json`, `themes/`).
+- Auth: loopback is exempt (CSRF-checked by Origin); remote needs an HMAC token or `open_access`. Passwords stored as argon2 hashes. Setup routes are loopback+Origin guarded (`setup_guard`).
+- Service IDs: base-36 timestamp (`radix_fmt`), not UUIDs.
+- **Route ordering:** `/api/services/reorder` is registered BEFORE `/api/services/{id}`.
 
-### Data flow
+## Backend files (`src-tauri/src/`)
+| File | Role |
+|------|------|
+| `lib.rs` | Axum router, handlers, WS, auth, CLI, Tauri setup, supervision |
+| `process.rs` | spawn/kill, log ring buffer (500), liveness via `try_wait`/`GetExitCodeProcess` |
+| `config.rs` | read/write config (atomic), themes, autostart (registry) |
 
-The daemon is the source of truth. On any change (service start/stop, config update), `broadcastStatus()` pushes a `status` Socket.IO event to all connected clients. The SolidJS store (`stores/services.ts`) subscribes to this event and reconciles local state.
+## Frontend files (`src/`)
+- `stores/socket.ts` — WS client, `apiFetch`, types
+- `stores/services.ts` — Zustand store (services, folders, settings)
+- `stores/ui.ts` — modal/selection state
+- `stores/themes.ts` — theme CRUD
+- `components/ServiceIcon.tsx` / `IconPicker.tsx` — per-service icons (Lucide name or data-URI upload)
+- `components/GenerativeBackground.tsx` — canvas-based vector flow-field background (used in Login/Onboarding)
 
-The UI also uses REST for mutations (`/api/services`, `/api/settings`, etc.) but always re-fetches after each mutation so the Socket.IO broadcast keeps everything consistent.
-
-### Server layer (`SolidJS/server/`)
-
-| File | Responsibility |
-|------|---------------|
-| `index.ts` | Express setup, Socket.IO, system tray (via `systray`), graceful shutdown |
-| `process-manager.ts` | Spawn child processes, capture stdout/stderr into in-memory log ring buffer, auto-restart with exponential backoff, detect already-running processes |
-| `config.ts` | Read/write `~/.winctl/services.json` and `~/.winctl/settings.json` (5 s TTL cache), manage themes in `~/.winctl/themes/` |
-| `routes.ts` | REST endpoints + input validation/sanitization |
-| `types.ts` | All shared TypeScript types |
-| `autostart.ts` | Windows Registry (`HKCU\...\Run`) autostart helpers |
-
-**Config files** live in `~/.winctl/`:
-- `services.json` — services and folders
-- `settings.json` — app settings (theme, folder preferences, autoStart)
-- `themes/` — JSON theme files (built-in ones are written on startup)
-
-**Port**: uses `WINCTL_PORT` env var (not `PORT`), defaults to `8080`.
-
-**Route ordering**: `/api/services/reorder` must be registered before `/api/services/:id` in `routes.ts` so Express doesn't treat `"reorder"` as an ID parameter.
-
-### Frontend layer (`SolidJS/src/`)
-
-- `stores/socket.ts` — Socket.IO client instance + all REST API wrappers (`apiFetch`)
-- `stores/services.ts` — SolidJS store (services, folders, settings, systemInfo); all mutations go through here
-- `stores/ui.ts` — UI-only state (modals, selected service, etc.)
-- `components/` — SolidJS components; `App.tsx` is the root
-
-### CLI (`cli/index.ts`)
-
-Standalone binary. Communicates with the daemon exclusively over HTTP on `localhost:WINCTL_PORT`. Commands: `start`, `stop`, `status`, `services`, `start-svc`, `stop-svc`, `restart-svc`, `logs`, `open`, `setup-firewall`, `init`.
-
-### Build outputs
-
-| Directory | Contents |
-|-----------|---------|
-| `SolidJS/dist/` | Vite client build (served as static files by daemon) |
-| `SolidJS/dist-server/` | Compiled daemon TypeScript |
-| `SolidJS/dist-cli/` | Compiled CLI TypeScript |
-| `winctl-daemon.exe` | pkg-bundled daemon (node18-win-x64) |
-| `winctl.exe` | pkg-bundled CLI |
-
-In `pkg` builds, `__dirname` points into the virtual snapshot. Static file serving resolves paths relative to `process.execPath` directory first, falling back to `__dirname`-relative paths for dev mode.
-
-### Service IDs
-
-Generated as `Date.now().toString(36)` — base-36 timestamps. Not UUIDs.
-
-### Theme system
-
-Themes are CSS variable sets stored as JSON. Built-in themes are written to `~/.winctl/themes/` on startup if they don't exist. Custom themes can be created/deleted via the API. The active theme ID is stored in `settings.json`.
-
----
-
-# Hindsight Memory Rules
-
-This project uses Hindsight persistent memory via MCP. Follow these rules every session.
-
-## Session Protocol
-
-- **Session start:** call `hindsight_recall("current task topic")` before doing any work
-- **Task complete:** call `hindsight_retain("what was done and why")` after any meaningful task
-- **When stuck:** call `hindsight_reflect("what's going wrong")` before trying a new approach
-
-Never re-explain the full project — query Hindsight first and build on what's there.
-
-## Memory Bank: `winctl`
+## Service fields of note
+- `icon` — Lucide icon name OR `data:` URI; empty = no icon.
+- `startDelayMins` — minutes to wait after boot before auto-starting (needs `autoStart`).
+- `autoStart` / `autoRestart` — launch on boot / relaunch on crash.
