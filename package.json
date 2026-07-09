@@ -1,6 +1,6 @@
 {
   "name": "winctl",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Self-hosted Windows process/service manager with web UI",
   "type": "module",
   "scripts": {
