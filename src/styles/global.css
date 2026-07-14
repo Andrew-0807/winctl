@@ -48,7 +48,12 @@ body {
 .shell {
   display: grid;
   grid-template-rows: 56px 1fr;
-  grid-template-columns: auto 1fr; /* aside width drives this column */
+  grid-template-columns: 190px 1fr; /* explicit width */
+  transition: grid-template-columns 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shell.sidebar-collapsed {
+  grid-template-columns: 48px 1fr;
 }
 
 /* ── Header ── */
@@ -95,7 +100,7 @@ header {
 
 .header-stats {
   display: flex;
-  gap: 16px;
+  gap: 8px;
   margin-left: auto;
   align-items: center;
 }
@@ -132,6 +137,137 @@ header {
 
 .dot-yellow {
   background: var(--yellow);
+}
+
+/* ── Animated Stats & Connection Chips in Header ── */
+.header-anim-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0 8px; /* Perfectly uniform: 0 top/bottom, 8px left/right */
+  color: var(--text2);
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  transition: max-width 0.48s cubic-bezier(0.25, 1, 0.5, 1), padding-right 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.15s, color 0.15s, box-shadow 0.2s, background-color 0.2s;
+  box-shadow: var(--glass-highlight);
+  cursor: pointer;
+  height: 28px;
+  box-sizing: border-box;
+  line-height: 1; /* Add this for vertical centering */
+}
+
+.header-anim-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: block; /* Align dot layout as block-level within flex container */
+  flex-shrink: 0;
+}
+
+.header-anim-chip .dot.dot-green {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+.header-anim-chip .dot.dot-red {
+  background: var(--red);
+  box-shadow: 0 0 4px var(--red);
+}
+
+.header-anim-chip:hover {
+  border-color: color-mix(in srgb, var(--text2) 45%, var(--glass-border));
+  box-shadow: var(--glass-highlight), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Connection Chip specific widths and transitions */
+.header-anim-chip.conn-chip {
+  max-width: 24px; /* Fix: 8px left + 6px dot + 8px right + 2px borders = 24px */
+  justify-content: center;
+}
+.header-anim-chip.conn-chip .dot {
+  margin-top: 0;
+}
+.header-anim-chip.conn-chip:hover {
+  max-width: 140px;
+  color: var(--text);
+}
+
+/* Connection states */
+.header-anim-chip.conn-chip.connected {
+  background: var(--green-dim);
+  color: var(--green);
+  border-color: var(--green);
+}
+.header-anim-chip.conn-chip.connected .dot {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+.header-anim-chip.conn-chip.connected:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+.header-anim-chip.conn-chip.disconnected {
+  background: var(--glass-bg);
+  color: var(--text3);
+  border-color: var(--glass-border);
+}
+.header-anim-chip.conn-chip.disconnected .dot {
+  background: var(--red);
+  box-shadow: 0 0 4px var(--red);
+}
+.header-anim-chip.conn-chip.connecting {
+  background: rgba(94, 114, 228, 0.2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.header-anim-chip.conn-chip.connecting .dot {
+  background: var(--yellow);
+  animation: pulse 1s infinite;
+  box-shadow: 0 0 4px var(--yellow);
+}
+
+/* Service Stats Chips specific widths and transitions */
+.header-anim-chip.stat-chip-anim {
+  max-width: 46px; /* Fits 8px left + 6px dot + 6px gap + 8px count + 8px right = 36px (safe max-width 46) */
+  gap: 6px;
+  justify-content: flex-start;
+}
+.header-anim-chip.stat-chip-anim:hover {
+  max-width: 150px;
+  color: var(--text);
+}
+.header-anim-chip.stat-chip-anim .stat-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+  line-height: 1; /* Aligns count vertically */
+}
+
+/* Text label wrapping container for scrambler */
+.header-anim-chip .chip-label-wrap {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+  transition: opacity 0.15s ease, max-width 0.48s cubic-bezier(0.25, 1, 0.5, 1), margin-left 0.48s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.header-anim-chip:hover .chip-label-wrap {
+  opacity: 1;
+  max-width: 90px;
+  margin-left: 6px;
 }
 
 .connection-status {
@@ -265,35 +401,27 @@ aside {
   position: sticky;
   top: 56px;
   height: calc(100vh - 56px);
-  width: 240px;      /* was 220 — matches grid column expectation */
+  width: 100%;       /* Fills the grid track, which transitions */
   overflow: hidden;  /* clip content during width transition */
-  transition: width 0.2s ease;
 }
 
-aside.collapsed {
-  width: 48px;
-}
-
-aside.collapsed .sidebar-header {
-  justify-content: center;
-  padding: 0;
-}
-
+/* Gracefully fade out labels and text rather than applying instant display: none */
 aside.collapsed .sidebar-label,
-aside.collapsed .nav-item>span:not(.nav-badge),
+aside.collapsed .nav-item > span,
 aside.collapsed .nav-badge {
-  display: none;
+  opacity: 0 !important;
+  transform: translateX(-8px) !important;
+  pointer-events: none;
 }
 
+/* Maintain identical layout, padding, and alignment in collapsed state to prevent layout jumps */
 aside.collapsed .nav-item {
-  justify-content: center;
-  padding: 8px 0;
-  gap: 0;
-  font-size: 0;
+  padding: 8px 16px;
+  gap: 12px;
 }
 
 aside.collapsed .sidebar-content {
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* .shell.sidebar-collapsed removed — aside width drives grid column via auto */
@@ -301,9 +429,10 @@ aside.collapsed .sidebar-content {
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
   padding: 0 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  height: 24px;
 }
 
 .sidebar-collapse-btn {
@@ -327,9 +456,9 @@ aside.collapsed .sidebar-content {
 }
 
 .sidebar-collapse-btn svg {
-  width: 12px;
-  height: 12px;
-  transition: transform 0.2s;
+  width: 14px;
+  height: 14px;
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 aside.collapsed .sidebar-collapse-btn svg {
@@ -337,7 +466,8 @@ aside.collapsed .sidebar-collapse-btn svg {
 }
 
 aside.collapsed .sidebar-header .sidebar-label {
-  display: none;
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .sidebar-content {
@@ -356,6 +486,9 @@ aside.collapsed .sidebar-header .sidebar-label {
   margin-bottom: 8px;
   margin-top: 16px;
   font-family: var(--font-sans);
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 250ms cubic-bezier(0.16, 1, 0.3, 1), transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sidebar-header .sidebar-label {
@@ -378,7 +511,10 @@ aside.collapsed .sidebar-header .sidebar-label {
   }
 }
 
-.nav-item,
+.nav-item {
+  animation: sidebar-item-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--nav-index, 0) * 35ms) both;
+}
+
 .sidebar-label {
   animation: sidebar-item-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--nav-index, 0) * 35ms) both;
 }
@@ -386,8 +522,9 @@ aside.collapsed .sidebar-header .sidebar-label {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 8px 16px;
+  height: 36px;
   font-size: 13px;
   color: var(--text2);
   cursor: pointer;
@@ -396,6 +533,22 @@ aside.collapsed .sidebar-header .sidebar-label {
   user-select: none;
   font-family: var(--font-sans);
   position: relative;
+}
+
+.nav-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.nav-item > span {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 250ms cubic-bezier(0.16, 1, 0.3, 1), transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
 .nav-item > * {
@@ -582,7 +735,8 @@ main {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: var(--font-weight-medium);
-  transition: max-width 0.58s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.15s, color 0.15s, box-shadow 0.2s, transform 0.1s;
+  /* Hover exit transition: longer and smoother */
+  transition: max-width 0.85s cubic-bezier(0.16, 1, 0.3, 1), padding 0.65s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, color 0.3s ease, box-shadow 0.4s ease, transform 0.15s ease;
   box-shadow: var(--neu-raised-sm);
   max-width: 28px;
 }
@@ -598,7 +752,9 @@ main {
   opacity: 0;
   max-width: 0;
   margin-left: 0;
-  transition: opacity 0.2s ease, max-width 0.58s cubic-bezier(0.25, 1, 0.5, 1), margin-left 0.58s cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+  /* Hover exit transition: longer and smoother */
+  transition: opacity 0.45s ease-out, max-width 0.85s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.85s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -611,12 +767,16 @@ main {
   color: var(--text);
   border-color: var(--border2);
   box-shadow: var(--neu-raised);
+  /* Hover enter transition: faster and snappier for responsiveness */
+  transition: max-width 0.45s cubic-bezier(0.25, 1, 0.5, 1), padding 0.35s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.15s ease, color 0.15s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
 .toolbar-anim-btn:hover .btn-label-wrap {
   opacity: 1;
   max-width: 100px;
   margin-left: 6px;
+  /* Hover enter transition: faster and snappier for responsiveness */
+  transition: opacity 0.25s ease-out, max-width 0.45s cubic-bezier(0.25, 1, 0.5, 1), margin-left 0.45s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .toolbar-anim-btn:active {
@@ -1314,20 +1474,23 @@ pre, code {
   border: 1px solid var(--border2);
   border-radius: 12px;
   width: 100%;
-  max-width: 560px;
+  max-width: 640px; /* Single-column form; wider just leaves empty gutters */
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transform: translateY(10px) scale(0.99);
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease;
   box-shadow: var(--shadow-modal);
 }
 
-.modal-backdrop.open .modal {
-  transform: translateY(0) scale(1);
+/* Single-column form. The col wrappers collapse (display:contents) so all
+   sections stack full-width under .modal-body. A 50/50 grid left the short
+   right column (Behavior + hotkey + collapsed icon) far shorter than the left,
+   so its lower two-thirds sat empty; long path inputs also read better at full
+   width than crammed into a 330px column. */
+.modal-col-left,
+.modal-col-right {
+  display: contents;
 }
-
 
 .modal-header {
   display: flex;
@@ -1366,10 +1529,10 @@ pre, code {
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 24px 28px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   text-align: left;
   overflow-y: auto;
   flex: 1 1 auto;
@@ -1498,19 +1661,19 @@ pre, code {
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .form-section + .form-section {
-  padding-top: 10px;
-  border-top: 1px solid var(--divider);
+  padding-top: 16px;
+  border-top: none; /* Removed thin divider lines */
 }
 
 .form-section-title {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800; /* Bolder titles */
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   color: var(--text3);
   margin: 0 0 -2px;
 }
@@ -1530,7 +1693,7 @@ pre, code {
 
 .form-group label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700; /* Bolder labels */
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text3);
@@ -1546,7 +1709,7 @@ pre, code {
   font-family: var(--font-sans);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
 }
 
@@ -1554,9 +1717,15 @@ pre, code {
   color: var(--text3);
 }
 
+.form-input:hover,
+.form-select:hover {
+  border-color: var(--border2);
+}
+
 .form-input:focus,
 .form-select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .form-select {
@@ -1649,7 +1818,7 @@ pre, code {
   cursor: pointer;
   font-family: var(--font-sans);
   transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
-  display: none;
+  display: flex;
   align-items: center;
   gap: 6px;
 }
@@ -2711,9 +2880,11 @@ pre, code {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: 56px 1fr;
+  .shell,
+  .shell.sidebar-collapsed {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 56px 1fr !important;
+    transition: none !important;
   }
 
   aside {
@@ -2855,6 +3026,7 @@ pre, code {
     background: var(--red);
     color: white;
     border-color: var(--red);
+    justify-content: center;
   }
 
   .modal-footer {
@@ -3225,7 +3397,7 @@ aside {
 }
 
 .sys-card-clickable:hover {
-  box-shadow: var(--neu-lift), var(--glass-highlight), var(--accent-bloom);
+  box-shadow: var(--neu-lift), var(--glass-highlight);
 }
 
 .sys-card-clickable:active {
@@ -3428,4 +3600,362 @@ aside {
   .svc-card, .sys-card, .folder-card {
     background: var(--surface);
   }
+}
+
+/* ── Standard Phone Layout & Touch Optimization ── */
+@media (max-width: 768px) {
+  /* Disable tap highlight color on iOS/Android */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text sizing adjustment on orientation change */
+  html, body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Disable text selection on interactive elements to prevent accidental highlight on tap */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  .ctrl-btn,
+  .filter-btn,
+  .sidebar-btn,
+  .log-btn,
+  .folder-action-btn,
+  .sidebar-collapse-btn,
+  .nav-item,
+  .drag-handle,
+  .folder-drag-handle,
+  .svc-status-dot,
+  .svc-icon-badge,
+  .folder-chevron,
+  .folder-icon,
+  .tab-item,
+  .panel-tab {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Ensure inputs allow selection/typing but prevent automatic iOS zoom by setting font-size to 16px */
+  input,
+  select,
+  textarea,
+  .form-input,
+  .form-select,
+  .search-box input,
+  .run-command-input {
+    font-size: 16px !important;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Smooth momentum scrolling for overflow areas on iOS */
+  .modal-body,
+  .panel-body,
+  main,
+  aside,
+  .gallery-folder-panel,
+  .log-viewer,
+  .log-terminal,
+  .sysinfo-output {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reset PC Hover transforms, transitions, and shadows to prevent "sticky hovers" on tap */
+  .svc-card:hover:not(.running):not(.stopped) {
+    transform: none !important;
+    border-color: var(--glass-border) !important;
+    box-shadow: var(--neu-raised), var(--glass-highlight) !important;
+  }
+  
+  .svc-card.running:hover {
+    transform: none !important;
+    border-color: var(--glass-border) !important;
+    box-shadow: var(--neu-raised), var(--glass-highlight), inset 3px 0 0 var(--green) !important;
+  }
+
+  .svc-card.stopped:hover {
+    transform: none !important;
+    border-color: var(--glass-border) !important;
+    box-shadow: var(--neu-raised), var(--glass-highlight) !important;
+  }
+
+  .sys-card-clickable:hover {
+    transform: none !important;
+    border-color: var(--glass-border) !important;
+    box-shadow: var(--neu-raised-sm), var(--glass-highlight) !important;
+  }
+
+  .ctrl-btn:hover,
+  .sidebar-btn:hover,
+  .log-btn:hover,
+  .folder-action-btn:hover,
+  .sidebar-collapse-btn:hover,
+  .btn-secondary:hover {
+    transform: none !important;
+    border-color: transparent !important;
+    box-shadow: var(--neu-raised-sm) !important;
+  }
+
+  /* Exclude active filters from hover resets so they keep their highlighted state */
+  .filter-btn:hover:not(.active) {
+    transform: none !important;
+    border-color: transparent !important;
+    box-shadow: var(--neu-raised-sm) !important;
+    background: var(--surface) !important;
+    color: var(--text2) !important;
+  }
+
+  .filter-btn.active:hover {
+    box-shadow: var(--neu-inset) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    background: var(--surface2) !important;
+  }
+
+  .btn-new:hover,
+  .btn-save:hover,
+  .fab-btn:hover {
+    transform: none !important;
+    box-shadow: var(--neu-raised-sm), 0 2px 10px var(--accent-glow) !important;
+  }
+
+  .nav-item:hover {
+    transform: none !important;
+    background: transparent !important;
+    color: var(--text2) !important;
+  }
+
+  .nav-item.active:hover {
+    background: var(--surface2) !important;
+    color: var(--accent) !important;
+  }
+
+  .folder-header:hover .folder-actions {
+    opacity: 1 !important;
+  }
+
+  /* Make sure drag handles are visible on touch devices since hover does not exist */
+  .drag-handle,
+  .folder-drag-handle {
+    opacity: 0.65 !important;
+    cursor: grab;
+  }
+
+  /* Optimize Touch Target Sizes (Minimum 44px x 44px for main controls) */
+  .ctrl-btn {
+    width: 44px !important;
+    height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .folder-action-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 8px !important;
+  }
+
+  .folder-action-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .mobile-settings-btn {
+    width: 44px !important;
+    height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .modal-close {
+    width: 44px !important;
+    height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  header {
+    padding-top: max(12px, env(safe-area-inset-top)) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  aside {
+    padding-top: max(20px, env(safe-area-inset-top)) !important;
+    padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+  }
+
+  main {
+    padding-left: max(14px, env(safe-area-inset-left)) !important;
+    padding-right: max(14px, env(safe-area-inset-right)) !important;
+    padding-bottom: max(100px, calc(100px + env(safe-area-inset-bottom))) !important;
+  }
+
+  .fab-container {
+    bottom: max(24px, env(safe-area-inset-bottom)) !important;
+    right: max(24px, env(safe-area-inset-right)) !important;
+  }
+
+  /* Modal polish on mobile: centered, cleaner sizing, fits keyboard */
+  .modal-backdrop {
+    padding: 12px !important;
+    align-items: flex-end; /* Bottom sheet styling matches phone apps best */
+  }
+
+  .modal {
+    max-height: 85vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Enable cancel button in modal footer for mobile devices so user has easy escape hatch */
+  .modal-footer-right .btn-cancel {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  /* Increase padding inside dialog list to allow easy thumb scroll */
+  .modal-body {
+    padding: 16px !important;
+  }
+
+  /* Prevent sticky sidebar hover pill on mobile */
+  .sidebar-hover-pill {
+    display: none !important;
+  }
+
+  /* Increase drag handle and chevron touch padding for standard touch target safety */
+  .drag-handle {
+    padding: 8px !important;
+  }
+
+  .folder-drag-handle {
+    padding: 8px !important;
+  }
+
+  .folder-chevron {
+    padding: 8px 6px !important;
+    margin-right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ── Installed Apps Selector ── */
+.installed-apps-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.installed-apps-search {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.installed-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.installed-app-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.installed-app-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.installed-app-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.installed-app-icon-fallback {
+  width: 24px;
+  height: 24px;
+  background: var(--surface);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+}
+
+.installed-app-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.installed-app-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.installed-app-path {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spinner-pulse {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--accent);
+  animation: spinner-pulse-spin 0.8s linear infinite;
+}
+
+@keyframes spinner-pulse-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

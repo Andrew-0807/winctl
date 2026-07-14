@@ -27,14 +27,18 @@ const FolderModal: React.FC = () => {
     }
   }, [folderModalOpen]);
 
+  // Snapshot once on open — not keyed on `folders`, whose ref changes on every
+  // background "update" broadcast and would wipe the in-progress folder name.
   useEffect(() => {
+    if (!folderModalOpen) return;
     if (folderModalEditId) {
       const folder = folders.find((f) => f.id === folderModalEditId);
       if (folder) setFolderName(folder.name);
     } else {
       setFolderName('');
     }
-  }, [folderModalEditId, folders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderModalEditId, folderModalOpen]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).classList.contains('modal-backdrop')) closeFolderModal();

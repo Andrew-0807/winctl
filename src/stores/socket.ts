@@ -17,6 +17,14 @@ export interface ServiceStatus {
   icon?: string | null;
   /** Minutes to wait after WinCTL boot before auto-starting. 0 = immediate. */
   startDelayMins?: number;
+  /** Global hotkey accelerator, e.g. "Control+Numpad2", "F9". Empty = none. */
+  hotkey?: string | null;
+  /** Primary hotkey behavior when not focused: "focus" | "focus_center" | "close". */
+  hotkeyAction?: string | null;
+  /** Behavior when already focused: "none" | "minimize" | "close". */
+  hotkeyWhenActive?: string | null;
+  /** Process image name for window matching (for .lnk/mismatched apps). */
+  hotkeyMatchExe?: string | null;
   status: string;
   pid: number | null;
   startedAt: string | null;
@@ -29,6 +37,14 @@ export interface ServiceStatus {
 export interface Folder {
   id: string;
   name: string;
+}
+
+export interface InstalledApp {
+  name: string;
+  path: string;
+  args: string;
+  cwd: string;
+  icon: string | null;
 }
 
 export interface Settings {
@@ -357,7 +373,7 @@ export const getSetupStatus = () =>
     bind_host: string;
   }>('/api/setup/status');
 
-export const completeSetup = (data: { api_secret: string; open_access: boolean; bind_host: string }) =>
+export const completeSetup = (data: { api_secret: string; open_access: boolean; bind_host: string; port?: number }) =>
   apiFetch<{ ok: boolean }>('/api/setup/complete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -370,3 +386,6 @@ export const registerDeviceAPI = (deviceId: string, deviceName: string) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ device_id: deviceId, device_name: deviceName }),
   });
+
+export const getInstalledAppsAPI = () =>
+  apiFetch<InstalledApp[]>('/api/system/installed-apps');

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useThemeStore, applyTheme } from '../stores/themes';
 import { apiFetch, getInstalledFonts, completeSetup, saveSettingsAPI } from '../stores/socket';
 import type { Theme } from '../stores/themes';
 import GenerativeBackground from './GenerativeBackground';
+import { safeRandomUUID } from '../lib/utils';
 
 interface OnboardingFlowProps {
   onComplete: (openAccess: boolean) => void;
@@ -19,64 +20,38 @@ interface StepProps {
 const STEP_LABELS = ['Theme', 'Font', 'Startup', 'Network'];
 
 const Stepper: React.FC<{ current: number }> = ({ current }) => {
-  // current = currentStep - 1 (steps 1-5 mapped to 0-4)
+  // current = currentStep - 1 (steps 1-4 mapped to 0-3)
+  const total = STEP_LABELS.length;
   return (
-    <div className="py-5 px-6 border-b border-border flex items-center gap-0">
-      {STEP_LABELS.map((label, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <React.Fragment key={label}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-              <div style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                background: done ? 'var(--accent)' : active ? 'var(--accent)' : 'var(--surface2)',
-                border: `2px solid ${done || active ? 'var(--accent)' : 'var(--border2)'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                flexShrink: 0,
-              }}>
-                {done ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                ) : (
-                  <span style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    color: active ? '#fff' : 'var(--text3)',
-                    lineHeight: 1,
-                  }}>
-                    {i + 1}
-                  </span>
-                )}
-              </div>
-              <span style={{
-                fontSize: '0.65rem',
-                fontWeight: active ? 600 : 400,
-                color: active ? 'var(--text)' : done ? 'var(--accent)' : 'var(--text3)',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.2s',
-              }}>
-                {label}
-              </span>
-            </div>
-            {i < STEP_LABELS.length - 1 && (
-              <div style={{
-                flex: 1,
-                height: 2,
-                background: done ? 'var(--accent)' : 'var(--border)',
-                marginBottom: 18,
-                transition: 'background 0.3s',
-              }} />
-            )}
-          </React.Fragment>
-        );
-      })}
+    <div className="py-[0.9rem] px-6 border-b border-border flex flex-col gap-[0.6rem]">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[0.95rem] font-semibold text-text tracking-[-0.01em] leading-none">
+          {STEP_LABELS[current]}
+        </span>
+        <span
+          style={{ fontFamily: 'var(--font-mono)' }}
+          className="text-[0.7rem] text-text3 tracking-[0.1em] leading-none tabular-nums"
+        >
+          {String(current + 1).padStart(2, '0')}
+          <span className="opacity-40"> / {String(total).padStart(2, '0')}</span>
+        </span>
+      </div>
+      <div
+        className="flex gap-1.5"
+        role="progressbar"
+        aria-valuenow={current + 1}
+        aria-valuemin={1}
+        aria-valuemax={total}
+        aria-label={`Step ${current + 1} of ${total}: ${STEP_LABELS[current]}`}
+      >
+        {STEP_LABELS.map((label, i) => (
+          <div
+            key={label}
+            className="h-[3px] flex-1 rounded-full transition-colors duration-300"
+            style={{ background: i <= current ? 'var(--accent)' : 'var(--border2)' }}
+          />
+        ))}
+      </div>
     </div>
   );
 };
@@ -125,8 +100,13 @@ const ToggleRow: React.FC<{
   onChange: (v: boolean) => void;
 }> = ({ label, description, checked, onChange }) => (
   <div
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    tabIndex={0}
     onClick={() => onChange(!checked)}
-    className={`flex items-center justify-between gap-4 py-[0.875rem] px-4 bg-surface2 rounded-lg cursor-pointer border transition-[border-color,background] duration-200 ${checked ? 'border-[rgba(59,130,246,0.3)]' : 'border-border'}`}
+    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange(!checked); } }}
+    className={`flex items-center justify-between gap-4 py-[0.875rem] px-4 rounded-lg cursor-pointer border transition-[border-color,background] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${checked ? 'border-[color-mix(in_srgb,var(--accent)_35%,var(--border))] bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface2))]' : 'border-border bg-surface2'}`}
   >
     <div>
       <div className="text-[0.875rem] font-medium text-text leading-[1.3]">
@@ -145,7 +125,7 @@ const ToggleRow: React.FC<{
 // ─── WarningBox ──────────────────────────────────────────────────────────────
 
 const WarningBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="bg-[rgba(240,180,41,0.1)] border border-yellow rounded-md py-3 px-[0.875rem] text-yellow text-[0.8rem] leading-[1.5]">
+  <div className="bg-[color-mix(in_srgb,var(--yellow)_10%,transparent)] border border-yellow rounded-md py-3 px-[0.875rem] text-yellow text-[0.8rem] leading-[1.5]">
     {children}
   </div>
 );
@@ -158,7 +138,8 @@ const NavButtons: React.FC<{
   nextLabel?: string;
   nextDisabled?: boolean;
   loading?: boolean;
-}> = ({ onBack, onNext, nextLabel = 'Continue', nextDisabled = false, loading = false }) => (
+  fullWidth?: boolean;
+}> = ({ onBack, onNext, nextLabel = 'Continue', nextDisabled = false, loading = false, fullWidth = false }) => (
   <div className={`flex items-center pt-1 ${onBack ? 'justify-between' : 'justify-end'}`}>
     {onBack && (
       <button
@@ -175,7 +156,7 @@ const NavButtons: React.FC<{
       <button
         onClick={onNext}
         disabled={nextDisabled || loading}
-        className={`flex items-center gap-1.5 border-none rounded-lg py-[0.65rem] px-5 text-[0.875rem] font-semibold transition-[background,color] duration-150 ${nextDisabled || loading ? 'bg-surface2 text-text3 cursor-not-allowed' : 'bg-accent text-white cursor-pointer'}`}
+        className={`flex items-center justify-center gap-1.5 border-none rounded-lg py-[0.7rem] px-5 text-[0.875rem] font-semibold transition-[background,color] duration-150 ${fullWidth && !onBack ? 'w-full' : ''} ${nextDisabled || loading ? 'bg-surface2 text-text3 cursor-not-allowed' : 'bg-accent text-white cursor-pointer'}`}
       >
         {loading ? (
           <>
@@ -199,10 +180,10 @@ const NavButtons: React.FC<{
 
 const StepHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
   <div className="mb-1">
-    <div className="text-[1.25rem] font-bold text-text leading-[1.25]">
+    <div className="text-[1.5rem] font-bold text-text leading-[1.15] tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
       {title}
     </div>
-    <div className="text-[0.875rem] text-text2 mt-[0.35rem] leading-[1.4]">
+    <div className="text-[0.875rem] text-text2 mt-[0.45rem] leading-[1.45]">
       {subtitle}
     </div>
   </div>
@@ -213,7 +194,7 @@ const StepHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subt
 const Step0Welcome: React.FC<StepProps> = ({ onNext }) => (
   <div className="pt-9 px-7 pb-7 flex flex-col gap-7">
     <div className="text-center">
-      <div className="w-[72px] h-[72px] rounded-[18px] bg-[rgba(59,130,246,0.12)] border border-[rgba(59,130,246,0.25)] flex items-center justify-center mx-auto mb-5">
+      <div className="w-[72px] h-[72px] rounded-[18px] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,var(--border))] flex items-center justify-center mx-auto mb-5">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.5">
           <rect x="2" y="3" width="20" height="14" rx="2" />
           <path d="M8 21h8M12 17v4" />
@@ -222,22 +203,38 @@ const Step0Welcome: React.FC<StepProps> = ({ onNext }) => (
           <path d="M17 9v.01" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
       </div>
-      <div className="text-[1.75rem] font-bold text-text tracking-[-0.02em]">
+      <div className="text-[2.25rem] font-bold text-text tracking-[-0.03em] leading-[1.08]" style={{ textWrap: 'balance' }}>
         Welcome to WinCTL
       </div>
-      <div className="text-[0.9375rem] text-text2 mt-2">
-        Your process manager for Windows — fast, local, and in control.
+      <div className="text-[0.9375rem] text-text2 mt-2.5 max-w-[38ch] mx-auto leading-[1.5]">
+        Your process manager for Windows. Fast, local, and in control.
       </div>
     </div>
 
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col bg-surface2 rounded-xl border border-border overflow-hidden">
       {[
-        { icon: '⚡', title: 'Spawn & supervise processes', desc: 'Auto-restart crashed services, capture logs in real time.' },
-        { icon: '🎨', title: 'Fully customizable', desc: 'Themes, fonts, and layout settings that stick.' },
-        { icon: '🔒', title: 'Secure by default', desc: 'Local-only binding with access key authentication.' },
-      ].map(({ icon, title, desc }) => (
-        <div key={title} className="flex gap-[0.875rem] py-3 px-[0.875rem] bg-surface2 rounded-lg border border-border">
-          <span className="text-[1.125rem] leading-[1.4] shrink-0">{icon}</span>
+        {
+          icon: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+          title: 'Spawn & supervise processes',
+          desc: 'Auto-restart crashed services and capture logs in real time.',
+        },
+        {
+          icon: <><circle cx="13.5" cy="6.5" r=".5" fill="var(--accent)" /><circle cx="17.5" cy="10.5" r=".5" fill="var(--accent)" /><circle cx="8.5" cy="7.5" r=".5" fill="var(--accent)" /><circle cx="6.5" cy="12.5" r=".5" fill="var(--accent)" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></>,
+          title: 'Fully customizable',
+          desc: 'Themes, fonts, and layout settings that stick.',
+        },
+        {
+          icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+          title: 'Secure by default',
+          desc: 'Runs locally, with a private access key for remote sign-in.',
+        },
+      ].map(({ icon, title, desc }, i) => (
+        <div key={title} className={`flex items-center gap-3.5 py-[0.85rem] px-4 ${i > 0 ? 'border-t border-border' : ''}`}>
+          <div className="w-9 h-9 rounded-lg bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] flex items-center justify-center shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              {icon}
+            </svg>
+          </div>
           <div>
             <div className="text-[0.875rem] font-semibold text-text">{title}</div>
             <div className="text-[0.8rem] text-text3 mt-0.5 leading-[1.4]">{desc}</div>
@@ -246,7 +243,7 @@ const Step0Welcome: React.FC<StepProps> = ({ onNext }) => (
       ))}
     </div>
 
-    <NavButtons onNext={onNext} nextLabel="Get Started" />
+    <NavButtons onNext={onNext} nextLabel="Get started" fullWidth />
   </div>
 );
 
@@ -260,7 +257,13 @@ const ThemeMiniPreview: React.FC<{ theme: Theme; selected: boolean; onClick: () 
   const c = theme.colors;
   return (
     <div
+      role="radio"
+      aria-checked={selected}
+      aria-label={theme.name}
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       style={{
         borderRadius: 8,
         border: `2px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
@@ -333,31 +336,13 @@ const Step1Theme: React.FC<StepProps & { selectedTheme: string; onSelectTheme: (
 
   return (
     <div className="p-7 flex flex-col gap-5">
-      <StepHeader title="Choose Your Theme" subtitle="Pick a visual style that suits your workflow." />
+      <StepHeader title="Choose your theme" subtitle="Pick a visual style that suits your workflow." />
       {themesLoading ? (
         <div className="text-center text-text3 py-8 text-[0.875rem]">
           Loading themes…
         </div>
       ) : (
-        <>
-          <select
-            value={selectedTheme}
-            onChange={(e) => {
-              const id = e.target.value;
-              onSelectTheme(id);
-              const theme = themes.find((t) => t.id === id);
-              if (theme) applyTheme(theme.colors);
-            }}
-            className="py-2 px-3 rounded-lg border border-border bg-surface text-text text-[0.875rem] cursor-pointer w-full"
-          >
-            {built_in.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-            {custom.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-          <div className="max-h-[300px] overflow-y-auto flex flex-col gap-4">
+        <div className="max-h-[320px] overflow-y-auto flex flex-col gap-4" role="radiogroup" aria-label="Theme">
             {built_in.length > 0 && (
               <div>
                 <div className="text-[0.7rem] text-text3 mb-2.5 uppercase tracking-[0.07em] font-semibold">
@@ -382,8 +367,7 @@ const Step1Theme: React.FC<StepProps & { selectedTheme: string; onSelectTheme: (
                 </div>
               </div>
             )}
-          </div>
-        </>
+        </div>
       )}
       <NavButtons onBack={onBack} onNext={onNext} />
     </div>
@@ -419,7 +403,6 @@ const Step2Font: React.FC<StepProps & { selectedFont: string; onSelectFont: (f: 
     padding: '0.575rem 0.75rem',
     color: 'var(--text)',
     fontSize: '0.875rem',
-    outline: 'none',
     width: '100%',
     boxSizing: 'border-box',
     fontFamily: 'var(--font-sans)',
@@ -427,12 +410,12 @@ const Step2Font: React.FC<StepProps & { selectedFont: string; onSelectFont: (f: 
 
   return (
     <div className="p-7 flex flex-col gap-5">
-      <StepHeader title="Choose Your Font" subtitle="Select a system font for the interface." />
+      <StepHeader title="Choose your font" subtitle="Select a system font for the interface." />
 
       {/* Live preview */}
       <div className="py-[0.875rem] px-4 bg-surface2 rounded-lg border border-border">
         <div className="text-[0.65rem] text-text3 mb-[0.4rem] uppercase tracking-[0.07em] font-semibold">
-          Preview — {selectedFont || 'System Default'}
+          Preview — {selectedFont || 'System default'}
         </div>
         <div style={{ fontFamily: `"${previewFont}", system-ui, sans-serif`, color: 'var(--text)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
           The quick brown fox jumps over the lazy dog.
@@ -445,9 +428,11 @@ const Step2Font: React.FC<StepProps & { selectedFont: string; onSelectFont: (f: 
       <input
         type="text"
         placeholder="Search fonts…"
+        aria-label="Search fonts"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={inputStyle}
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-0"
       />
 
       {loading ? (
@@ -455,20 +440,26 @@ const Step2Font: React.FC<StepProps & { selectedFont: string; onSelectFont: (f: 
           Loading fonts…
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
+        <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto" role="radiogroup" aria-label="Interface font">
           {/* System default option */}
-          <div
+          <button
+            type="button"
+            role="radio"
+            aria-checked={selectedFont === ''}
             onClick={() => onSelectFont('')}
-            className={`flex items-center justify-between py-[0.575rem] px-3 rounded-md cursor-pointer border transition-[border-color] duration-150 ${selectedFont === '' ? 'bg-[rgba(59,130,246,0.08)] border-[rgba(59,130,246,0.3)]' : 'bg-surface2 border-border'}`}
+            className={`flex items-center justify-between w-full text-left py-[0.6rem] px-3 rounded-md cursor-pointer border transition-[border-color,background] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${selectedFont === '' ? 'bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface2))] border-[color-mix(in_srgb,var(--accent)_35%,var(--border))]' : 'bg-surface2 border-border'}`}
           >
-            <span className="text-[0.875rem] text-text">System Default</span>
+            <span className="text-[0.875rem] text-text">System default</span>
             <span className="text-[0.75rem] text-text3">Segoe UI</span>
-          </div>
+          </button>
           {filtered.map((font) => (
-            <div
+            <button
               key={font}
+              type="button"
+              role="radio"
+              aria-checked={selectedFont === font}
               onClick={() => onSelectFont(font)}
-              className={`flex items-center justify-between py-[0.575rem] px-3 rounded-md cursor-pointer border transition-[border-color] duration-150 ${selectedFont === font ? 'bg-[rgba(59,130,246,0.08)] border-[rgba(59,130,246,0.3)]' : 'bg-surface2 border-border'}`}
+              className={`flex items-center justify-between w-full text-left py-[0.6rem] px-3 rounded-md cursor-pointer border transition-[border-color,background] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${selectedFont === font ? 'bg-[color-mix(in_srgb,var(--accent)_8%,var(--surface2))] border-[color-mix(in_srgb,var(--accent)_35%,var(--border))]' : 'bg-surface2 border-border'}`}
             >
               <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: '0.875rem', color: 'var(--text)' }}>
                 {font}
@@ -478,7 +469,7 @@ const Step2Font: React.FC<StepProps & { selectedFont: string; onSelectFont: (f: 
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               )}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -522,8 +513,13 @@ const ModeCard: React.FC<{
   description: string;
 }> = ({ selected, onClick, icon, label, description }) => (
   <div
+    role="radio"
+    aria-checked={selected}
+    aria-label={label}
+    tabIndex={0}
     onClick={onClick}
-    className={`flex-1 p-4 rounded-[10px] cursor-pointer transition-all duration-150 flex flex-col gap-2 border-2 ${selected ? 'border-accent bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface2))]' : 'border-border bg-surface2'}`}
+    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+    className={`flex-1 p-4 rounded-[10px] cursor-pointer transition-all duration-150 flex flex-col gap-2 border-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${selected ? 'border-accent bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface2))]' : 'border-border bg-surface2'}`}
   >
     <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-[background] duration-150 ${selected ? 'bg-accent' : 'bg-border'}`}>
       {icon}
@@ -544,12 +540,19 @@ const Step4Network: React.FC<StepProps & {
   onSetLanPort: (v: string) => void;
   onSetUseRandomPassword: (v: boolean) => void;
   onSetLanPassword: (v: string) => void;
+  submitting: boolean;
 }> = ({
   onNext, onBack,
   lanMode, requirePassword, lanPort, useRandomPassword, lanPassword,
   onSetLanMode, onSetRequirePassword, onSetLanPort, onSetUseRandomPassword, onSetLanPassword,
+  submitting,
 }) => {
   const [showPw, setShowPw] = useState(false);
+
+  const portNum = parseInt(lanPort, 10);
+  const portValid = !lanMode || (Number.isInteger(portNum) && portNum >= 1024 && portNum <= 65535);
+  const passwordValid = !(lanMode && requirePassword && !useRandomPassword) || lanPassword.length >= 8;
+  const canContinue = portValid && passwordValid;
 
   return (
   <div className="p-7 flex flex-col gap-5">
@@ -603,13 +606,17 @@ const Step4Network: React.FC<StepProps & {
                 max={65535}
                 value={lanPort}
                 onChange={(e) => onSetLanPort(e.target.value)}
-                className="bg-surface2 border border-border rounded-lg py-[0.6rem] px-[0.875rem] text-text text-[0.875rem] outline-none w-full box-border font-mono"
+                aria-invalid={!portValid}
+                className={`bg-surface2 border rounded-lg py-[0.6rem] px-[0.875rem] text-text text-[0.875rem] outline-none w-full box-border font-mono ${portValid ? 'border-border' : 'border-red'}`}
               />
+              {!portValid && (
+                <div className="text-[0.7rem] text-red mt-1">Enter a port between 1024 and 65535.</div>
+              )}
             </div>
 
             {/* Require password toggle */}
             <ToggleRow
-              label="Require password"
+              label="Require an access key"
               description="Anyone on the LAN must authenticate with the access key."
               checked={requirePassword}
               onChange={onSetRequirePassword}
@@ -634,9 +641,11 @@ const Step4Network: React.FC<StepProps & {
                           <button
                             key={mode}
                             onClick={() => onSetUseRandomPassword(mode === 'auto')}
-                            className={`flex-1 p-[0.45rem] border-none rounded-md text-[0.8rem] cursor-pointer transition-all duration-150 ${active ? 'bg-surface text-text font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.3)]' : 'bg-transparent text-text3 font-normal shadow-none'}`}
+                            role="tab"
+                            aria-selected={active}
+                            className={`flex-1 p-[0.45rem] border-none rounded-md text-[0.8rem] cursor-pointer transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${active ? 'bg-surface text-text font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.3)]' : 'bg-transparent text-text3 font-normal shadow-none'}`}
                           >
-                            {mode === 'auto' ? 'Auto-generate' : 'Set custom'}
+                            {mode === 'auto' ? 'Auto-generate' : 'Choose my own'}
                           </button>
                         );
                       })}
@@ -654,10 +663,11 @@ const Step4Network: React.FC<StepProps & {
                         >
                           <input
                             type={showPw ? 'text' : 'password'}
-                            placeholder="Min. 4 characters"
+                            placeholder="At least 8 characters"
                             value={lanPassword}
                             onChange={(e) => onSetLanPassword(e.target.value)}
-                            className={`bg-surface2 border border-border rounded-lg py-[0.6rem] pr-10 pl-[0.875rem] text-text text-[0.875rem] outline-none w-full box-border ${showPw ? '' : 'font-mono'}`}
+                            aria-invalid={!passwordValid}
+                            className={`bg-surface2 border rounded-lg py-[0.6rem] pr-10 pl-[0.875rem] text-text text-[0.875rem] outline-none w-full box-border ${passwordValid ? 'border-border' : 'border-red'} ${showPw ? '' : 'font-mono'}`}
                           />
                           <button
                             type="button"
@@ -682,8 +692,7 @@ const Step4Network: React.FC<StepProps & {
 
                     {useRandomPassword && (
                       <div className="text-[0.775rem] text-text3 leading-[1.4]">
-                        A secure password will be generated on setup. You can find it in{' '}
-                        <code className="text-[0.7rem] text-text2">~/.config/winctl/settings.json</code>.
+                        A secure access key will be generated when you finish. It's shown once on the next screen, so copy it then. It's stored only as a hash and can't be recovered.
                       </div>
                     )}
                   </div>
@@ -701,7 +710,7 @@ const Step4Network: React.FC<StepProps & {
       )}
     </AnimatePresence>
 
-    <NavButtons onBack={onBack} onNext={onNext} />
+    <NavButtons onBack={onBack} onNext={onNext} nextDisabled={!canContinue} loading={submitting} />
   </div>
   );
 };
@@ -717,11 +726,13 @@ const Step5Done: React.FC<{ accessKey: string; openAccess: boolean; lanMode: boo
   onFinish,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(accessKey).then(() => {
       setCopied(true);
+      setCopyFailed(false);
       setTimeout(() => setCopied(false), 1500);
-    }).catch(() => {});
+    }).catch(() => setCopyFailed(true));
   };
 
   const note = openAccess
@@ -733,8 +744,8 @@ const Step5Done: React.FC<{ accessKey: string; openAccess: boolean; lanMode: boo
   return (
     <div className="pt-9 px-7 pb-7 flex flex-col gap-6">
       <div className="text-center">
-        <div className="w-[60px] h-[60px] rounded-full bg-[rgba(34,197,94,0.12)] border border-[rgba(34,197,94,0.3)] flex items-center justify-center mx-auto mb-4">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green, #22c55e)" strokeWidth="2.5">
+        <div className="w-[60px] h-[60px] rounded-full bg-[color-mix(in_srgb,var(--green)_14%,transparent)] border border-[color-mix(in_srgb,var(--green)_30%,var(--border))] flex items-center justify-center mx-auto mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </div>
@@ -763,6 +774,11 @@ const Step5Done: React.FC<{ accessKey: string; openAccess: boolean; lanMode: boo
         <div className="text-[0.775rem] text-text3 mt-2 leading-[1.45]">
           {note}
         </div>
+        {copyFailed && (
+          <div role="alert" className="text-[0.75rem] text-yellow mt-1.5">
+            Couldn't access the clipboard. Select the key above and copy it manually.
+          </div>
+        )}
       </div>
 
       <NavButtons onNext={onFinish} nextLabel="Finish" />
@@ -772,11 +788,11 @@ const Step5Done: React.FC<{ accessKey: string; openAccess: boolean; lanMode: boo
 
 // ─── Slide variants ───────────────────────────────────────────────────────────
 
-const slideVariants = {
-  initial: (dir: number) => ({ x: dir * 24, opacity: 0 }),
+const makeSlideVariants = (reduce: boolean) => ({
+  initial: (dir: number) => ({ x: reduce ? 0 : dir * 24, opacity: 0 }),
   animate: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir * -24, opacity: 0 }),
-};
+  exit: (dir: number) => ({ x: reduce ? 0 : dir * -24, opacity: 0 }),
+});
 
 // ─── Main flow ────────────────────────────────────────────────────────────────
 
@@ -795,32 +811,47 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
   const [error, setError] = useState<string | null>(null);
   const [accessKey, setAccessKey] = useState('');
   const [resolvedOpenAccess, setResolvedOpenAccess] = useState(false);
+  const inFlight = useRef(false);
+  const headingRef = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion() ?? false;
+  const slideVariants = makeSlideVariants(reduce);
 
   const go = (step: number) => {
     setDirection(step > currentStep ? 1 : -1);
     setCurrentStep(step);
   };
 
+  // Move focus to the panel on each step change so keyboard/AT users don't get
+  // dropped to <body> when the previous step's buttons unmount.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [currentStep]);
+
   const handleComplete = async () => {
+    if (inFlight.current) return;   // synchronous double-submit guard
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     try {
       const resolvedSecret = lanMode && requirePassword
-        ? (useRandomPassword ? crypto.randomUUID().split('-').join('').slice(0, 16) : lanPassword)
-        : crypto.randomUUID().split('-').join('').slice(0, 16);
+        ? (useRandomPassword ? safeRandomUUID().split('-').join('').slice(0, 16) : lanPassword)
+        : safeRandomUUID().split('-').join('').slice(0, 16);
+
+      // Save preferences BEFORE the irreversible complete_setup, so a failure
+      // here leaves setup un-committed and retryable (settings merge preserves
+      // secrets and network fields, which complete_setup writes last anyway).
+      await saveSettingsAPI({
+        theme: selectedTheme,
+        customFont: selectedFont || null,
+        autoStart: autostart,
+      } as any);
 
       await completeSetup({
         api_secret: resolvedSecret,
         open_access: lanMode ? !requirePassword : false,
         bind_host: lanMode ? '0.0.0.0' : '127.0.0.1',
         port: lanMode ? parseInt(lanPort, 10) : undefined,
-      } as any);
-
-      await saveSettingsAPI({
-        theme: selectedTheme,
-        customFont: selectedFont || null,
-        autoStart: autostart,
-      } as any);
+      });
 
       const openAccess = lanMode && !requirePassword;
       // Show the access key before finishing — it's stored only as a hash, so
@@ -830,14 +861,22 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
       setDirection(1);
       setCurrentStep(5);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Setup failed. Please try again.';
+      // 409: setup already completed server-side (lost response, reload, or a
+      // second instance). No dead-end — move the user forward to sign in.
+      if (/already complete/i.test(msg)) {
+        onComplete(false);
+        return;
+      }
       console.error('Setup failed:', e);
-      setError(e instanceof Error ? e.message : 'Setup failed. Please try again.');
+      setError(msg);
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   };
 
-  const showStepper = currentStep > 0;
+  const showStepper = currentStep > 0 && currentStep <= STEP_LABELS.length;
 
   return (
     <>
@@ -858,17 +897,20 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
       <div className="flex items-center justify-center min-h-screen bg-bg p-6 relative overflow-hidden">
         <GenerativeBackground />
         <div className="w-full max-w-[500px] relative z-[1]">
-          <div className="bg-[var(--glass-bg)] bg-[image:var(--glass-sheen)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl shadow-[var(--glass-highlight),var(--shadow-modal)] overflow-hidden">
+          <div className="bg-[var(--glass-bg)] bg-[image:var(--glass-sheen)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] rounded-2xl shadow-[var(--glass-highlight),var(--shadow-modal)] overflow-hidden max-h-[92vh] overflow-y-auto">
             {showStepper && <Stepper current={currentStep - 1} />}
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
                 key={currentStep}
+                ref={headingRef}
+                tabIndex={-1}
                 custom={direction}
                 variants={slideVariants}
                 initial="initial"
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.22, ease: 'easeInOut' }}
+                className="outline-none"
               >
                 {currentStep === 0 && (
                   <Step0Welcome onNext={() => go(1)} />
@@ -911,6 +953,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
                     onSetLanPort={setLanPort}
                     onSetUseRandomPassword={setUseRandomPassword}
                     onSetLanPassword={setLanPassword}
+                    submitting={loading}
                   />
                 )}
                 {currentStep === 5 && (
@@ -926,9 +969,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
 
             {error && (
               <motion.div
+                role="alert"
+                aria-live="assertive"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-4 py-3 px-4 bg-[rgba(245,82,74,0.15)] border border-red rounded-lg text-red text-[0.875rem]"
+                className="mt-4 py-3 px-4 bg-[color-mix(in_srgb,var(--red)_15%,transparent)] border border-red rounded-lg text-red text-[0.875rem]"
               >
                 {error}
               </motion.div>

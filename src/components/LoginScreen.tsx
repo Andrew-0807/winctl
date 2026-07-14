@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useServiceStore } from '../stores/services';
 import GenerativeBackground from './GenerativeBackground';
+import { safeRandomUUID } from '../lib/utils';
 
 const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -19,7 +20,7 @@ const LoginScreen: React.FC = () => {
     try {
       await login(password);
       if (trustDevice) {
-        const deviceId = crypto.randomUUID();
+        const deviceId = safeRandomUUID();
         const hostname = window.navigator.userAgent;
         await registerDevice(deviceId, hostname);
       }

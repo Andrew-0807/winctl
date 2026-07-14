@@ -14,6 +14,7 @@ interface ServiceCardProps {
   onLogToggle?: (service: Service) => void;
   activeLogServiceId?: string;
   dragHandleProps?: Record<string, any>;
+  isDragging?: boolean;
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({
@@ -22,6 +23,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   onLogToggle,
   activeLogServiceId,
   dragHandleProps,
+  isDragging = false,
 }) => {
   const [currentTab, setCurrentTab] = useState('logs');
   const folders = useServiceStore((s) => s.folders);
@@ -39,7 +41,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   const isStarting = service.status === 'starting';
   const isStopping = service.status === 'stopping';
   const isTransitioning = isStarting || isStopping;
-  const isExpanded = !!openPanels[service.id];
+  const isExpanded = !isDragging && !!openPanels[service.id];
 
   // Pulse the status LED when a service settles into running/stopped. The CSS
   // (statusRipple) already existed but lost its trigger in the SolidJS→React move.
@@ -156,7 +158,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       onKeyDown={handleKeyDown}
     >
       <div className={`svc-header status-${service.status}${statusChanged ? ' status-change' : ''}`} onClick={handleTogglePanel}>
-        <div className="drag-handle" title="Drag to reorder" {...dragHandleProps}>
+        <div
+          className="drag-handle"
+          title="Drag to reorder"
+          onClick={(e) => e.stopPropagation()}
+          {...dragHandleProps}
+        >
           <Icon name="GripVertical" size={14} />
         </div>
         {service.icon ? (

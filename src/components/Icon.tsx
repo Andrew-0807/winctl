@@ -21,6 +21,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   X: LucideIcons.X,
   ChevronLeft: LucideIcons.ChevronLeft,
   ChevronRight: LucideIcons.ChevronRight,
+  ChevronDown: LucideIcons.ChevronDown,
   RefreshCw: LucideIcons.RefreshCw,
   Trash: LucideIcons.Trash,
   Edit: LucideIcons.Edit,

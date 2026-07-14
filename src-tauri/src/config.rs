@@ -38,6 +38,25 @@ pub struct Service {
     /// Minutes to wait after WinCTL boot before auto-starting. 0 = immediate.
     #[serde(default)]
     pub start_delay_mins: u32,
+    /// Global hotkey accelerator (e.g. "Control+Numpad2", "Alt+KeyE", "F9").
+    /// Uses UIEvents `code` names for keys. Empty/None = no hotkey.
+    #[serde(default)]
+    pub hotkey: Option<String>,
+    /// Primary hotkey behavior when the window is NOT already focused (or not
+    /// running): "focus" (launch or bring to front), "focus_center" (same, plus
+    /// center + resize the window), "close" (unconditional kill). None = "focus".
+    #[serde(default)]
+    pub hotkey_action: Option<String>,
+    /// What happens when the window IS already the foreground window:
+    /// "minimize", "close" (kill), or "none". None = "none". Ignored when
+    /// `hotkey_action` is "close" (that kills regardless of focus).
+    #[serde(default)]
+    pub hotkey_when_active: Option<String>,
+    /// Process image name used to find the app's window, for apps whose running
+    /// process differs from the launch command (e.g. a .lnk that starts
+    /// SteelSeriesGGClient.exe). Empty = basename of `command`.
+    #[serde(default)]
+    pub hotkey_match_exe: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -192,6 +211,12 @@ fn services_path() -> PathBuf {
 
 fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
+}
+
+/// True when a settings.json already exists on disk. Lets boot distinguish a
+/// genuine first run from a read failure, so defaults never overwrite a real config.
+pub fn settings_exists() -> bool {
+    settings_path().exists()
 }
 
 fn themes_dir() -> PathBuf {

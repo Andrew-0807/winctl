@@ -1,4 +1,5 @@
 mod config;
+mod hotkeys;
 mod process;
 
 use std::sync::{Arc, RwLock};
@@ -38,7 +39,7 @@ use sha2::Sha256;
 use subtle::ConstantTimeEq;
 use reqwest::header::AUTHORIZATION;
 use argon2::Argon2;
-use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng};
+use password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::{OsRng, RngCore}};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -54,12 +55,20 @@ const DEFAULT_PORT: u16 = 8888;
 
 const VALID_FETCH_TOOLS: &[&str] = &["fastfetch", "neofetch", "winfetch"];
 
+/// Generate a 32-byte CSPRNG signing key (base64). Used as the HMAC secret for
+/// session/device tokens; must be high-entropy since it's the sole token secret.
+fn generate_signing_key() -> String {
+    let mut bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut bytes);
+    BASE64.encode(bytes)
+}
+
 /// Generate a token that expires at `absolute_expiry` (Unix seconds).
+/// Standard HMAC: the secret is the key only, never part of the signed message.
 fn generate_token(secret: &str, absolute_expiry: u64) -> String {
     let ts = absolute_expiry.to_string();
-    let data = format!("{}:{}", ts, secret);
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
-    mac.update(data.as_bytes());
+    mac.update(ts.as_bytes());
     let sig = BASE64.encode(mac.finalize().into_bytes());
     format!("{}:{}", ts, sig)
 }
@@ -206,6 +215,27 @@ fn log_audit(msg: &str) {
 }
 // ── process finder (for supervising externally-started services) ─────────────────
 
+/// Check if a command, executable, or argument list looks like a protected game anti-cheat process.
+/// This prevents WinCTL from starting, monitoring, or terminating anti-cheat services.
+pub fn is_protected_process(name: &str) -> bool {
+    let name_lc = name.to_lowercase();
+    let protected = [
+        "easyanticheat",
+        "anticheat",
+        "battleye",
+        "beservice",
+        "vanguard",
+        "vgtray",
+        "vgc.exe",
+        "punkbuster",
+        "gamemon",
+        "xigncode",
+        "faceit",
+        "esea",
+    ];
+    protected.iter().any(|&p| name_lc.contains(p))
+}
+
 /// Find all running processes on Windows, returning a map of PID -> (exe_name, command_line).
 fn find_all_running_processes() -> std::collections::HashMap<u32, (String, String)> {
     let mut map = std::collections::HashMap::new();
@@ -300,6 +330,9 @@ async fn login(
         password == secret
     };
     if !password_valid {
+        // ponytail: no per-IP rate limiting yet; argon2 cost is the only brute-force
+        // barrier. Add exponential backoff / lockout keyed on ip if the server is
+        // exposed beyond loopback and brute-force becomes a real threat.
         log_audit(&format!("FAILED login attempt from IP: {}", ip));
         return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Invalid access key".to_string() })));
     }
@@ -353,15 +386,22 @@ async fn complete_setup(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CompleteSetupRequest>,
 ) -> Result<Json<OkResponse>, (StatusCode, Json<ErrorResponse>)> {
-    if req.api_secret.len() < 4 {
-        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Access key must be at least 4 characters".to_string() })));
+    if req.api_secret.len() < 8 {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Access key must be at least 8 characters".to_string() })));
+    }
+    // Reject anything that isn't a valid IP; blocks garbage/injection and the
+    // client only ever sends 127.0.0.1 or 0.0.0.0.
+    if req.bind_host.parse::<std::net::IpAddr>().is_err() {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Invalid bind host".to_string() })));
     }
 
     let mut settings = state.settings.write().map_err(|_| (lock_err(), Json(ErrorResponse { error: "Server error".to_string() })))?;
 
-    // Idempotency guard: reject if setup already completed
-    if settings.onboarding_complete {
-        return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "Setup already completed".to_string() })));
+    // Idempotency guard keyed on api_secret (the same signal `needs_setup` uses),
+    // so a wedged state (onboarding flag set but no secret) can still be repaired.
+    // Holding the write lock across check-and-set serializes concurrent POSTs.
+    if settings.api_secret.is_some() {
+        return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "Setup is already complete. Restart WinCTL and sign in with your access key.".to_string() })));
     }
     let hashed = hash_password(&req.api_secret)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: e })))?;
@@ -373,8 +413,11 @@ async fn complete_setup(
     }
     settings.onboarding_complete = true;
 
-    let key = Uuid::new_v4().simple().to_string();
-    settings.signing_key = Some(key);
+    // Don't rotate signing_key here: it's already generated at boot and captured
+    // in AppState.auth_key. Rotating it would invalidate live tokens on next restart.
+    if settings.signing_key.is_none() {
+        settings.signing_key = Some(generate_signing_key());
+    }
 
     state.open_access.store(settings.open_access, std::sync::atomic::Ordering::Relaxed);
 
@@ -424,12 +467,16 @@ async fn register_device(
         let token_valid = token.map(|t| validate_token(t, &state.auth_key)).unwrap_or(false);
         if !token_valid {
             log_audit(&format!("Unauthorized attempt to register device '{}' from IP: {}", req.device_name, addr.ip()));
-            return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Authentication required to register devices after setup".to_string() })));
+            return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "This device is already set up. Sign in with your access key instead.".to_string() })));
         }
     }
 
     let device_id = Uuid::new_v4().simple().to_string();
 
+    // ponytail: the issued token is not bound to device_id, so removing a device
+    // from trusted_devices doesn't revoke its token until expiry. Embed device_id
+    // in the token payload and check trusted_devices membership in validate_token
+    // if per-device revocation is needed.
     let expiry = now_secs() + DEVICE_TOKEN_EXPIRY_SECS;
     let token = generate_token(&state.auth_key, expiry);
 
@@ -466,6 +513,9 @@ async fn create_service(
     State(state): State<Arc<AppState>>,
     Json(svc): Json<config::Service>,
 ) -> Result<Json<config::Service>, (StatusCode, Json<ErrorResponse>)> {
+    if is_protected_process(&svc.command) || is_protected_process(&svc.args) {
+        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Commands or arguments containing anti-cheat software terms are blocked for safety".to_string() })));
+    }
     let mut services = state.services.write().map_err(|_| (lock_err(), Json(ErrorResponse { error: "Server error".to_string() })))?;
     let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
     let new_service = config::Service {
@@ -480,6 +530,7 @@ async fn create_service(
     }
     drop(services);
     let _ = state.tx.send("update".to_string());
+    resync_hotkeys(&state);
     Ok(Json(new_service))
 }
 
@@ -488,6 +539,9 @@ async fn update_service(
     Path(id): Path<String>,
     Json(svc): Json<config::Service>,
 ) -> Result<Json<config::Service>, (StatusCode, Json<ErrorResponse>)> {
+    if is_protected_process(&svc.command) || is_protected_process(&svc.args) {
+        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Commands or arguments containing anti-cheat software terms are blocked for safety".to_string() })));
+    }
     let mut services = state.services.write().map_err(|_| (lock_err(), Json(ErrorResponse { error: "Server error".to_string() })))?;
     if let Some(idx) = services.services.iter().position(|s| s.id == id) {
         let old = services.services[idx].clone();
@@ -498,6 +552,7 @@ async fn update_service(
         }
         drop(services);
         let _ = state.tx.send("update".to_string());
+        resync_hotkeys(&state);
         Ok(Json(svc))
     } else {
         Err((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Service not found".to_string() })))
@@ -520,7 +575,15 @@ async fn delete_service(
     }
     drop(services);
     let _ = state.tx.send("update".to_string());
+    resync_hotkeys(&state);
     Ok(Json(OkResponse { ok: true }))
+}
+
+/// Re-register global hotkeys from the current service list. Cheap; called after
+/// any service create/update/delete. No-op before Tauri setup stores the handle.
+fn resync_hotkeys(state: &AppState) {
+    let svcs = state.services.read().map(|s| s.services.clone()).unwrap_or_default();
+    hotkeys::sync(&svcs);
 }
 
 async fn reorder_services(
@@ -744,6 +807,12 @@ async fn service_start(
         find_service(&services, &id).cloned()
     };
     let s = svc.ok_or(StatusCode::NOT_FOUND)?;
+
+    if is_protected_process(&s.command) || is_protected_process(&s.args) {
+        log_audit(&format!("BLOCKED: Service '{}' ({}) start contains protected anti-cheat terms", s.name, s.id));
+        return Err(StatusCode::FORBIDDEN);
+    }
+
     let pm = state.process_manager.clone();
 
     log_audit(&format!("Service '{}' ({}) start requested from IP: {}", s.name, s.id, addr.ip()));
@@ -774,6 +843,12 @@ async fn service_stop(
         find_service(&services, &id).cloned()
     };
     let s = svc.ok_or(StatusCode::NOT_FOUND)?;
+
+    if is_protected_process(&s.command) || is_protected_process(&s.args) {
+        log_audit(&format!("BLOCKED: Service '{}' ({}) stop contains protected anti-cheat terms", s.name, s.id));
+        return Err(StatusCode::FORBIDDEN);
+    }
+
     let pm = state.process_manager.clone();
 
     log_audit(&format!("Service '{}' ({}) stop requested from IP: {}", s.name, s.id, addr.ip()));
@@ -794,6 +869,11 @@ async fn service_restart(
         find_service(&services, &id).cloned()
     };
     let s = svc.ok_or(StatusCode::NOT_FOUND)?;
+
+    if is_protected_process(&s.command) || is_protected_process(&s.args) {
+        log_audit(&format!("BLOCKED: Service '{}' ({}) restart contains protected anti-cheat terms", s.name, s.id));
+        return Err(StatusCode::FORBIDDEN);
+    }
 
     log_audit(&format!("Service '{}' ({}) restart requested from IP: {}", s.name, s.id, addr.ip()));
 
@@ -956,7 +1036,19 @@ async fn get_system_info() -> Json<SystemInfoResponse> {
 
 async fn flush_memory() -> Json<FlushMemoryResponse> {
     #[cfg(windows)] {
-        meminfo::purge_standby();
+        // Safety check: if any protected anti-cheat process is running, skip the standby purge
+        // to avoid triggering anti-cheat driver heuristics.
+        let running = find_all_running_processes();
+        let any_protected = running.values().any(|(name, cmdline)| {
+            is_protected_process(name) || is_protected_process(cmdline)
+        });
+
+        if !any_protected {
+            meminfo::purge_standby();
+        } else {
+            eprintln!("[winctl] Safety warning: memory flushing was bypassed because an anti-cheat process or protected game was detected active.");
+        }
+
         let (_, free_mem, cached_mem) = meminfo::read();
         return Json(FlushMemoryResponse { free_mem, cached_mem });
     }
@@ -967,6 +1059,11 @@ async fn flush_memory() -> Json<FlushMemoryResponse> {
 async fn exec_command(State(state): State<Arc<AppState>>, Json(req): Json<ExecRequest>) -> Result<Json<ExecResponse>, (StatusCode, Json<ErrorResponse>)> {
     use tokio::io::{AsyncBufReadExt, BufReader};
     use std::process::Stdio;
+
+    // Safety check: block command execution if the command matches any protected anti-cheat terms
+    if is_protected_process(&req.command) {
+        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Execution of anti-cheat related commands is blocked for safety".to_string() })));
+    }
 
     // Check if exec endpoint is enabled
     {
@@ -1111,6 +1208,406 @@ async fn get_fonts() -> Json<Vec<String>> {
     // Behind auth + cached: the font list never changes at runtime, so the
     // slow blocking PowerShell enumeration runs at most once per process.
     Json(FONTS_CACHE.get_or_init(load_fonts).clone())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct InstalledApp {
+    name: String,
+    path: String,
+    args: String,
+    cwd: String,
+    icon: Option<String>,
+}
+
+static INSTALLED_APPS_CACHE: std::sync::Mutex<Option<(std::time::Instant, Vec<InstalledApp>)>> = std::sync::Mutex::new(None);
+
+fn get_installed_apps_db_path() -> std::path::PathBuf {
+    config::config_dir().join("installed_apps.json")
+}
+
+fn load_installed_apps_db() -> Option<Vec<InstalledApp>> {
+    let path = get_installed_apps_db_path();
+    if !path.exists() {
+        return None;
+    }
+    let data = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+fn save_installed_apps_db(apps: &[InstalledApp]) -> std::io::Result<()> {
+    if let Err(e) = config::ensure_config_dir() {
+        return Err(e);
+    }
+    let path = get_installed_apps_db_path();
+    let data = serde_json::to_string(apps)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    std::fs::write(path, data)
+}
+
+#[cfg(windows)]
+fn scan_lnk_files(dir: &std::path::Path, results: &mut Vec<std::path::PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                scan_lnk_files(&path, results);
+            } else if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext.to_ascii_lowercase() == "lnk" {
+                        results.push(path);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn resolve_lnk(lnk_path: &std::path::Path) -> Option<(String, String, String)> {
+    unsafe {
+        use windows::core::{HSTRING, PCWSTR, Interface};
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+            COINIT_DISABLE_OLE1DDE, IPersistFile,
+        };
+        use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
+
+        // Initialize COM for this thread
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+        let shell_link: IShellLinkW = CoCreateInstance(
+            &ShellLink,
+            None,
+            CLSCTX_INPROC_SERVER,
+        ).ok()?;
+
+        let persist_file: IPersistFile = shell_link.cast().ok()?;
+        let path_hstr = HSTRING::from(lnk_path.as_os_str());
+        persist_file.Load(PCWSTR::from_raw(path_hstr.as_ptr()), windows::Win32::System::Com::STGM(0)).ok()?;
+
+        let mut path_buf = [0u16; 260];
+        let mut fd = windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW::default();
+        shell_link.GetPath(&mut path_buf, &mut fd, 0).ok()?;
+        let target_path = String::from_utf16_lossy(&path_buf)
+            .trim_end_matches('\0')
+            .to_string();
+
+        let mut args_buf = [0u16; 1024];
+        shell_link.GetArguments(&mut args_buf).ok()?;
+        let arguments = String::from_utf16_lossy(&args_buf)
+            .trim_end_matches('\0')
+            .to_string();
+
+        let mut cwd_buf = [0u16; 260];
+        shell_link.GetWorkingDirectory(&mut cwd_buf).ok()?;
+        let working_dir = String::from_utf16_lossy(&cwd_buf)
+            .trim_end_matches('\0')
+            .to_string();
+
+        Some((target_path, arguments, working_dir))
+    }
+}
+
+#[cfg(windows)]
+unsafe fn icon_to_bmp_base64(h_icon: windows::Win32::UI::WindowsAndMessaging::HICON) -> Option<String> {
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, CreateDIBSection, SelectObject, DeleteDC, DeleteObject,
+        BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{DrawIconEx, DI_NORMAL};
+    use base64::Engine;
+
+    let width = 32;
+    let height = 32;
+
+    let h_dc = CreateCompatibleDC(None);
+    if h_dc.is_invalid() {
+        return None;
+    }
+
+    let mut bmi = BITMAPINFO::default();
+    bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height; // Top-down DIB
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = 0; // BI_RGB
+
+    let mut bits_ptr = std::ptr::null_mut();
+    let h_bitmap = match CreateDIBSection(
+        Some(h_dc),
+        &bmi,
+        DIB_RGB_COLORS,
+        &mut bits_ptr,
+        None,
+        0,
+    ) {
+        Ok(h) => h,
+        Err(_) => {
+            let _ = DeleteDC(h_dc);
+            return None;
+        }
+    };
+
+    if h_bitmap.is_invalid() || bits_ptr.is_null() {
+        let _ = DeleteDC(h_dc);
+        if !h_bitmap.is_invalid() {
+            let _ = DeleteObject(h_bitmap.into());
+        }
+        return None;
+    }
+
+    let old_obj = SelectObject(h_dc, h_bitmap.into());
+    let draw_res = DrawIconEx(
+        h_dc,
+        0,
+        0,
+        h_icon,
+        width,
+        height,
+        0,
+        None,
+        DI_NORMAL,
+    );
+
+    SelectObject(h_dc, old_obj);
+    let _ = DeleteDC(h_dc);
+
+    if draw_res.is_err() {
+        let _ = DeleteObject(h_bitmap.into());
+        return None;
+    }
+
+    let pixel_count = (width * height) as usize;
+    let bgra_slice = std::slice::from_raw_parts(bits_ptr as *const u8, pixel_count * 4);
+
+    let mut all_zero_alpha = true;
+    for chunk in bgra_slice.chunks_exact(4) {
+        if chunk[3] != 0 {
+            all_zero_alpha = false;
+            break;
+        }
+    }
+
+    let mut final_bgra = bgra_slice.to_vec();
+    if all_zero_alpha {
+        for chunk in final_bgra.chunks_exact_mut(4) {
+            chunk[3] = 255;
+        }
+    }
+
+    let mut bmp_bytes = Vec::with_capacity(54 + final_bgra.len());
+    bmp_bytes.extend_from_slice(b"BM");
+    let file_size = (54 + final_bgra.len()) as u32;
+    bmp_bytes.extend_from_slice(&file_size.to_le_bytes());
+    bmp_bytes.extend_from_slice(&[0, 0, 0, 0]);
+    bmp_bytes.extend_from_slice(&54u32.to_le_bytes());
+
+    bmp_bytes.extend_from_slice(&40u32.to_le_bytes());
+    bmp_bytes.extend_from_slice(&width.to_le_bytes());
+    bmp_bytes.extend_from_slice(&(-height).to_le_bytes());
+    bmp_bytes.extend_from_slice(&1u16.to_le_bytes());
+    bmp_bytes.extend_from_slice(&32u16.to_le_bytes());
+    bmp_bytes.extend_from_slice(&0u32.to_le_bytes());
+    bmp_bytes.extend_from_slice(&(final_bgra.len() as u32).to_le_bytes());
+    bmp_bytes.extend_from_slice(&2835i32.to_le_bytes());
+    bmp_bytes.extend_from_slice(&2835i32.to_le_bytes());
+    bmp_bytes.extend_from_slice(&0u32.to_le_bytes());
+    bmp_bytes.extend_from_slice(&0u32.to_le_bytes());
+
+    bmp_bytes.extend_from_slice(&final_bgra);
+
+    let _ = DeleteObject(h_bitmap.into());
+
+    let b64 = base64::prelude::BASE64_STANDARD.encode(&bmp_bytes);
+    Some(format!("data:image/bmp;base64,{}", b64))
+}
+
+#[cfg(windows)]
+fn get_icon_base64(file_path: &str) -> Option<String> {
+    unsafe {
+        use windows::core::{HSTRING, PCWSTR};
+        use windows::Win32::UI::Shell::{SHGetFileInfoW, SHGFI_ICON, SHGFI_LARGEICON, SHFILEINFOW};
+        use windows::Win32::UI::WindowsAndMessaging::DestroyIcon;
+
+        let path_hstr = HSTRING::from(file_path);
+        let mut shfi = SHFILEINFOW::default();
+        let res = SHGetFileInfoW(
+            PCWSTR::from_raw(path_hstr.as_ptr()),
+            windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES(0),
+            Some(&mut shfi as *mut _ as *mut _),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_ICON | SHGFI_LARGEICON,
+        );
+
+        if res == 0 || shfi.hIcon.is_invalid() {
+            return None;
+        }
+
+        let base64_icon = icon_to_bmp_base64(shfi.hIcon);
+        let _ = DestroyIcon(shfi.hIcon);
+        base64_icon
+    }
+}
+
+async fn get_installed_apps() -> Json<Vec<InstalledApp>> {
+    let cached = {
+        let cache = INSTALLED_APPS_CACHE.lock().unwrap();
+        if let Some((instant, ref list)) = *cache {
+            if instant.elapsed() < std::time::Duration::from_secs(600) {
+                Some(list.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
+    if let Some(list) = cached {
+        return Json(list);
+    }
+
+    #[cfg(windows)]
+    let list = {
+        use std::collections::HashMap;
+
+        // Load the persistent cache from disk
+        let db_apps = load_installed_apps_db().unwrap_or_default();
+        let mut db_lookup: HashMap<String, InstalledApp> = db_apps
+            .into_iter()
+            .map(|app| {
+                let key = format!("{}|||{}", app.path, app.args);
+                (key, app)
+            })
+            .collect();
+
+        // Step 1: Scan for .lnk files synchronously in spawn_blocking
+        let lnk_files = tokio::task::spawn_blocking(move || {
+            let mut files = Vec::new();
+            if let Some(app_data) = dirs::data_dir() {
+                let user_start_menu = app_data.join("Microsoft").join("Windows").join("Start Menu").join("Programs");
+                scan_lnk_files(&user_start_menu, &mut files);
+            }
+
+            let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+            let system_start_menu = std::path::Path::new(&program_data).join("Microsoft").join("Windows").join("Start Menu").join("Programs");
+            scan_lnk_files(&system_start_menu, &mut files);
+
+            if let Some(desktop_user) = dirs::desktop_dir() {
+                scan_lnk_files(&desktop_user, &mut files);
+            }
+
+            let public_profile = std::env::var("PUBLIC").unwrap_or_else(|_| "C:\\Users\\Public".to_string());
+            let system_desktop = std::path::Path::new(&public_profile).join("Desktop");
+            scan_lnk_files(&system_desktop, &mut files);
+
+            files
+        }).await.unwrap_or_default();
+
+        // Step 2: Resolve .lnk files in parallel
+        let mut resolve_tasks = Vec::new();
+        for lnk in lnk_files {
+            resolve_tasks.push(tokio::task::spawn_blocking(move || {
+                let file_stem = lnk.file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Unknown".to_string());
+
+                let stem_lower = file_stem.to_lowercase();
+                if stem_lower.contains("uninstall") || stem_lower.contains("remove") || stem_lower.contains("help") || stem_lower.contains("documentation") {
+                    return None;
+                }
+
+                if let Some((target_path, args, cwd)) = resolve_lnk(&lnk) {
+                    let target_path_lower = target_path.to_lowercase();
+                    let is_executable = target_path_lower.ends_with(".exe")
+                        || target_path_lower.ends_with(".bat")
+                        || target_path_lower.ends_with(".cmd")
+                        || target_path_lower.ends_with(".ps1");
+
+                    if is_executable && std::path::Path::new(&target_path).is_file() {
+                        return Some((file_stem, target_path, args, cwd));
+                    }
+                }
+                None
+            }));
+        }
+
+        let resolved_results = futures::future::join_all(resolve_tasks).await;
+
+        // Step 3: Deduplicate resolved apps
+        let mut unique_apps: HashMap<String, (String, String, String, String)> = HashMap::new();
+        for res in resolved_results {
+            if let Ok(Some((file_stem, target_path, args, cwd))) = res {
+                let key = format!("{}|||{}", target_path, args);
+                if let Some(existing) = unique_apps.get(&key) {
+                    if file_stem.len() < existing.0.len() {
+                        unique_apps.insert(key, (file_stem, target_path, args, cwd));
+                    }
+                } else {
+                    unique_apps.insert(key, (file_stem, target_path, args, cwd));
+                }
+            }
+        }
+
+        // Compare unique_apps with db_lookup, identify which ones are already cached
+        // and which ones need to be extracted.
+        let mut final_list = Vec::new();
+        let mut apps_to_extract = Vec::new();
+        let initial_db_size = db_lookup.len();
+
+        for (key, (file_stem, target_path, args, cwd)) in unique_apps {
+            if let Some(mut cached_app) = db_lookup.remove(&key) {
+                // Reuse the cached app, updating name and cwd if they changed
+                cached_app.name = file_stem;
+                cached_app.cwd = cwd;
+                final_list.push(cached_app);
+            } else {
+                apps_to_extract.push((file_stem, target_path, args, cwd));
+            }
+        }
+
+        // Step 4: Extract icons in parallel for new/uncached apps only
+        let mut icon_tasks = Vec::new();
+        for (file_stem, target_path, args, cwd) in apps_to_extract.clone() {
+            icon_tasks.push(tokio::task::spawn_blocking(move || {
+                let icon = get_icon_base64(&target_path);
+                InstalledApp {
+                    name: file_stem,
+                    path: target_path,
+                    args,
+                    cwd,
+                    icon,
+                }
+            }));
+        }
+
+        let extracted_apps = futures::future::join_all(icon_tasks)
+            .await
+            .into_iter()
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+
+        final_list.extend(extracted_apps);
+
+        final_list.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+        // Save updated list to DB if there were any changes (new apps, removed apps, or first-time setup)
+        let cache_changed = !apps_to_extract.is_empty() || !db_lookup.is_empty() || initial_db_size == 0;
+        if cache_changed {
+            let _ = save_installed_apps_db(&final_list);
+        }
+
+        final_list
+    };
+
+    #[cfg(not(windows))]
+    let list = Vec::new();
+
+    let mut cache = INSTALLED_APPS_CACHE.lock().unwrap();
+    *cache = Some((std::time::Instant::now(), list.clone()));
+
+    Json(list)
 }
 
 async fn get_sysinfo_tools() -> Json<ToolsResponse> {
@@ -1402,6 +1899,7 @@ fn create_router(state: AppState, _server_port: u16) -> Router {
         .route("/api/pc/{action}", post(power_control))
         .route("/api/system", get(get_system_info))
         .route("/api/system/flush-memory", post(flush_memory))
+        .route("/api/system/installed-apps", get(get_installed_apps))
         .route("/api/exec", post(exec_command))
         .route("/api/exec/{execId}/kill", post(kill_exec_session))
         .route("/api/sysinfo/tools", get(get_sysinfo_tools))
@@ -1433,14 +1931,19 @@ async fn setup_guard(request: Request<Body>, next: Next) -> axum::response::Resp
     if !is_local {
         return forbidden();
     }
-    if let Some(origin) = request.headers().get("origin").and_then(|v| v.to_str().ok()) {
-        let ok = origin.starts_with("http://localhost:")
-            || origin.starts_with("http://127.0.0.1:")
-            || origin == "https://tauri.localhost"
-            || origin == "tauri://localhost";
-        if !ok {
-            return forbidden();
-        }
+    // Require a present, allowlisted Origin. The frontend (browser or Tauri
+    // webview) always sends one on these cross-origin fetches; a bare local
+    // process (curl/malware) omitting Origin must NOT be able to hijack setup.
+    let origin_ok = request.headers().get("origin").and_then(|v| v.to_str().ok())
+        .map(|origin| {
+            origin.starts_with("http://localhost:")
+                || origin.starts_with("http://127.0.0.1:")
+                || origin == "https://tauri.localhost"
+                || origin == "tauri://localhost"
+        })
+        .unwrap_or(false);
+    if !origin_ok {
+        return forbidden();
     }
     next.run(request).await
 }
@@ -1787,7 +2290,18 @@ fn start_server(state: AppState) {
 
 fn create_app_state() -> AppState {
     let services = config::read_services().unwrap_or_default();
-    let mut settings = config::read_settings().unwrap_or_default();
+    // Distinguish "no config yet" from "config exists but couldn't be read". A
+    // transient/locked/corrupt read must NOT fall through to defaults and then get
+    // persisted below — that would wipe a real api_secret and force onboarding on a
+    // machine that was already set up. On read error, keep defaults in memory only.
+    let settings_existed = config::settings_exists();
+    let mut settings = match config::read_settings() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[winctl] failed to read settings ({e}); using in-memory defaults, NOT overwriting the file");
+            config::Settings::default()
+        }
+    };
     let (tx, _rx) = broadcast::channel::<String>(100);
 
     // Migrate plaintext api_secret to argon2 hash
@@ -1807,14 +2321,16 @@ fn create_app_state() -> AppState {
         }
     }
 
-    // Persist default settings on first run so trusted_devices and signing_key survive restarts
-    if settings.api_secret.is_none() {
+    // Persist default settings ONLY on a genuine first run (no file on disk). Never
+    // write here just because api_secret is None while a settings file exists — a
+    // failed read above could have handed us defaults over a real, set-up config.
+    if settings.api_secret.is_none() && !settings_existed {
         let _ = config::write_settings(&settings);
     }
 
     let settings = settings; // reborrow for later use
     let signing_key = settings.signing_key.clone().unwrap_or_else(|| {
-        let key = Uuid::new_v4().simple().to_string();
+        let key = generate_signing_key();
         let mut updated_settings = settings.clone();
         updated_settings.signing_key = Some(key.clone());
         let _ = config::write_settings(&updated_settings);
@@ -1943,6 +2459,13 @@ pub fn run() {
     let _ = config::ensure_config_dir();
     let _ = config::ensure_themes_dir();
 
+    // Preload installed apps from disk database
+    if let Some(db_apps) = load_installed_apps_db() {
+        if let Ok(mut cache) = INSTALLED_APPS_CACHE.lock() {
+            *cache = Some((std::time::Instant::now(), db_apps));
+        }
+    }
+
     let state           = create_app_state();
     let state_for_tauri = state.clone();
 
@@ -2020,6 +2543,15 @@ fn run_gui_with_state(state: AppState) {
     let state_clone = state.clone();
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|_app, shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        hotkeys::on_pressed(shortcut);
+                    }
+                })
+                .build(),
+        )
         .setup(move |app| {
             // Check for updates on startup; download + install silently if one is available.
             let update_handle = app.handle().clone();
@@ -2067,6 +2599,11 @@ fn run_gui_with_state(state: AppState) {
             }
 
             broadcast_listener(state_clone.tx.clone(), state_clone.clone(), app.handle().clone());
+
+            // Register global hotkeys for services that define one.
+            hotkeys::init_handle(app.handle());
+            let svcs = state_clone.services.read().map(|s| s.services.clone()).unwrap_or_default();
+            hotkeys::sync(&svcs);
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -2079,6 +2616,15 @@ fn run_headless_with_state(state: AppState) {
     let state_clone = state.clone();
 
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|_app, shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        hotkeys::on_pressed(shortcut);
+                    }
+                })
+                .build(),
+        )
         .setup(move |app| {
             let open_item = MenuItem::with_id(app, "open", "Open Browser", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit",         true, None::<&str>)?;
@@ -2095,6 +2641,10 @@ fn run_headless_with_state(state: AppState) {
                 .build(app)?;
 
             broadcast_listener(state_clone.tx.clone(), state_clone.clone(), app.handle().clone());
+
+            hotkeys::init_handle(app.handle());
+            let svcs = state_clone.services.read().map(|s| s.services.clone()).unwrap_or_default();
+            hotkeys::sync(&svcs);
             Ok(())
         })
         .run(tauri::generate_context!())

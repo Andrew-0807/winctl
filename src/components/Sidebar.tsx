@@ -54,7 +54,9 @@ const Sidebar: React.FC = () => {
         onMouseEnter={() => setHoveredId(item.id)}
         style={{ '--nav-index': item.index } as React.CSSProperties}
       >
-        <Icon name={item.icon} size={12} />
+        <div className="nav-icon-wrapper">
+          <Icon name={item.icon} size={14} />
+        </div>
         <span>{item.label}</span>
         {hoveredId === item.id && (
           <motion.div
@@ -93,15 +95,15 @@ const Sidebar: React.FC = () => {
       >
         <div className="sidebar-header">
           <button className="sidebar-collapse-btn" onClick={toggleSidebarCollapse} title="Toggle sidebar">
-            <Icon name="ChevronLeft" size={12} />
+            <Icon name="ChevronLeft" size={14} />
           </button>
         </div>
 
         <div className="sidebar-content">
           <div className="sidebar-label" style={{ '--nav-index': 0 } as React.CSSProperties}>Actions</div>
 
-          {renderNavItem({ id: 'new-service', label: 'New Service', icon: 'Plus', action: openServiceModal, index: 1 })}
-          {renderNavItem({ id: 'new-folder', label: 'New Folder', icon: 'FolderPlus', action: openFolderModal, index: 2 })}
+          {renderNavItem({ id: 'new-service', label: 'New Service', icon: 'Plus', action: () => openServiceModal(), index: 1 })}
+          {renderNavItem({ id: 'new-folder', label: 'New Folder', icon: 'FolderPlus', action: () => openFolderModal(), index: 2 })}
           {renderNavItem({ id: 'start-all', label: 'Start All', icon: 'Play', action: startAll, index: 3 })}
           {renderNavItem({ id: 'stop-all', label: 'Stop All', icon: 'Square', action: stopAll, index: 4 })}
           {renderNavItem({ id: 'sys-info', label: 'System Info', icon: 'Laptop', action: openSystemInfoModal, index: 5 })}

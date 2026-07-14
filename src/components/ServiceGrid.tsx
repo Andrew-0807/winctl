@@ -206,11 +206,10 @@ const ServiceGrid: React.FC = () => {
         )}
       </div>
 
-      {/* Real drag preview — follows the cursor for both services and folders. */}
       <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
         {activeService && (
           <div className="svc-wrapper drag-overlay-card">
-            <ServiceCard service={activeService} inFolder={!!activeService.folderId} />
+            <ServiceCard service={activeService} inFolder={!!activeService.folderId} isDragging={true} />
           </div>
         )}
         {activeFolder && (

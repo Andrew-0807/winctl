@@ -9,13 +9,13 @@ interface ScrambledTextProps {
 }
 
 const ScrambledText: React.FC<ScrambledTextProps> = ({ text, trigger }) => {
-  const [displayText, setDisplayText] = useState('');
+  const [displayText, setDisplayText] = useState(trigger ? '' : text);
   const intervalRef = useRef<number | null>(null);
   const chars = '0123456789%@#$?!<>{}[]*+=';
 
   useEffect(() => {
     if (!trigger) {
-      setDisplayText('');
+      setDisplayText(text);
       return;
     }
 
@@ -139,7 +139,7 @@ const Toolbar: React.FC = () => {
 
         {/* New Service Action */}
         <AnimatedToolbarButton
-          onClick={openServiceModal}
+          onClick={() => openServiceModal()}
           icon="Plus"
           label="New Service"
           className="btn-accent-hover"
@@ -147,7 +147,7 @@ const Toolbar: React.FC = () => {
         />
         {/* New Folder Action */}
         <AnimatedToolbarButton
-          onClick={openFolderModal}
+          onClick={() => openFolderModal()}
           icon="FolderPlus"
           label="New Folder"
           className="btn-secondary-hover"

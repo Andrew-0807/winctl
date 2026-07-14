@@ -25,8 +25,9 @@ const GenerativeBackground: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Check prefers-reduced-motion for accessibility
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Check prefers-reduced-motion for accessibility or if on a mobile viewport (to save CPU & battery)
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches || isMobile;
 
     let animationFrameId: number;
     let width = document.documentElement.clientWidth;

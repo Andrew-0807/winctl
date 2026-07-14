@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as api from './socket';
 import type { ServiceStatus, Folder, Settings, SystemInfo, StatusPayload, ExecOutputEvent, ExecDoneEvent } from './socket';
 import { execEvents } from './ui';
+import { safeRandomUUID } from '../lib/utils';
 
 // UI-only settings that persist locally but aren't sent to server
 export interface UISettings {
@@ -220,20 +221,17 @@ export const useServiceStore = create<ServiceState>((set, get) => ({
     }
   },
 
+  // Lets errors propagate so the modal can surface the real reason instead of
+  // silently closing on failure. ServiceModal is the only caller.
   saveService: async (data, id) => {
-    try {
-      if (id) {
-        const existing = get().services.find((s) => s.id === id);
-        if (!existing) return false;
-        const fullData = { ...existing, ...data };
-        await api.updateServiceAPI(fullData);
-      } else {
-        await api.createServiceAPI(data as ServiceStatus);
-      }
-      return true;
-    } catch {
-      return false;
+    if (id) {
+      const existing = get().services.find((s) => s.id === id);
+      if (!existing) throw new Error('Service no longer exists');
+      await api.updateServiceAPI({ ...existing, ...data });
+    } else {
+      await api.createServiceAPI(data as ServiceStatus);
     }
+    return true;
   },
 
   deleteService: async (id) => {
@@ -295,7 +293,7 @@ export const useServiceStore = create<ServiceState>((set, get) => ({
       if (id) {
         await api.updateFolderAPI({ id, name });
       } else {
-        await api.createFolderAPI({ id: crypto.randomUUID(), name });
+        await api.createFolderAPI({ id: safeRandomUUID(), name });
       }
       return true;
     } catch {
@@ -371,7 +369,9 @@ export const useServiceStore = create<ServiceState>((set, get) => ({
   checkSetupStatus: async () => {
     try {
       const status = await api.getSetupStatus();
-      const isComplete = status.onboarding_complete === true;
+      // Authoritative signal is whether the access-key secret exists, matching
+      // the server's `needs_setup`. `onboarding_complete` can drift from it.
+      const isComplete = status.api_secret_set === true;
       set({ onboardingComplete: isComplete });
       return isComplete;
     } catch {

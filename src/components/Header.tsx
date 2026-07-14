@@ -1,19 +1,88 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useServiceStore } from '../stores/services';
 import { useUIStore } from '../stores/ui';
 import Icon from './Icon';
+
+interface ScrambledTextProps {
+  text: string;
+  trigger: boolean;
+}
+
+const ScrambledText: React.FC<ScrambledTextProps> = ({ text, trigger }) => {
+  const [displayText, setDisplayText] = useState('');
+  const intervalRef = useRef<number | null>(null);
+  const chars = '0123456789%@#$?!<>{}[]*+=';
+
+  useEffect(() => {
+    if (!trigger) {
+      setDisplayText('');
+      return;
+    }
+
+    let iteration = 0;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = window.setInterval(() => {
+      setDisplayText(() => {
+        return text
+          .split('')
+          .map((char, index) => {
+            if (index < iteration) {
+              return text[index];
+            }
+            if (char === ' ') return ' ';
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join('');
+      });
+
+      if (iteration >= text.length) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+      iteration += 1 / 3; // Reveals 1 character every 3 ticks (~75ms)
+    }, 25);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [text, trigger]);
+
+  return <span>{displayText}</span>;
+};
+
+interface HeaderStatChipProps {
+  icon: React.ReactNode;
+  label: string;
+  count?: number;
+  className?: string;
+}
+
+const HeaderStatChip: React.FC<HeaderStatChipProps> = ({
+  icon,
+  label,
+  count,
+  className = '',
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className={`header-anim-chip ${className}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >{icon}{count !== undefined && <span className="stat-count">{count}</span>}<span className="chip-label-wrap"><ScrambledText text={label} trigger={isHovered} /></span></div>
+  );
+};
 
 const Header: React.FC = () => {
   const connected = useServiceStore((s) => s.connected);
   const connecting = useServiceStore((s) => s.connecting);
   const services = useServiceStore((s) => s.services);
-  const systemInfo = useServiceStore((s) => s.systemInfo);
   const toggleSidebarMobile = useUIStore((s) => s.toggleSidebarMobile);
   const openSettingsModal = useUIStore((s) => s.openSettingsModal);
 
   const runningCount = services.filter((s) => s.status === 'running').length;
   const stoppedCount = services.filter((s) => s.status === 'stopped').length;
-  const hostname = systemInfo?.hostname || '—';
 
   return (
     <header>
@@ -52,23 +121,23 @@ const Header: React.FC = () => {
       </div>
 
       <div className="header-stats">
-        <div className={`connection-status ${connected ? 'connected' : connecting ? 'connecting' : 'disconnected'}`}>
-          <span className="dot"></span>
-          <span className="label">
-            {connected ? 'Connected' : connecting ? 'Connecting...' : 'Disconnected'}
-          </span>
-        </div>
-        <div className="stat-chip">
-          <span className="dot dot-green"></span>
-          <span>{runningCount}</span>
-          <span className="chip-label"> running</span>
-        </div>
-        <div className="stat-chip">
-          <span className="dot dot-red"></span>
-          <span>{stoppedCount}</span>
-          <span className="chip-label"> stopped</span>
-        </div>
-        <div className="stat-chip hostname">{hostname}</div>
+        <HeaderStatChip
+          className={`conn-chip ${connected ? 'connected' : connecting ? 'connecting' : 'disconnected'}`}
+          icon={<span className="dot"></span>}
+          label={connected ? 'Connected' : connecting ? 'Connecting' : 'Disconnected'}
+        />
+        <HeaderStatChip
+          className="stat-chip-anim"
+          icon={<span className="dot dot-green"></span>}
+          count={runningCount}
+          label="running"
+        />
+        <HeaderStatChip
+          className="stat-chip-anim"
+          icon={<span className="dot dot-red"></span>}
+          count={stoppedCount}
+          label="stopped"
+        />
       </div>
 
       <button className="mobile-settings-btn" onClick={openSettingsModal} title="Settings">

@@ -42,6 +42,7 @@ const SortableService: React.FC<Props> = ({
         onLogToggle={onLogToggle}
         activeLogServiceId={activeLogServiceId}
         dragHandleProps={listeners}
+        isDragging={isDragging}
       />
     </div>
   );
